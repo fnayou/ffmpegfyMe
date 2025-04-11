@@ -1,0 +1,21 @@
+# Input/Output/State content
+in/*
+!in/stream-list.json
+!in/.gitkeep
+
+out/*
+!out/.gitkeep
+
+progress/*
+!progress/.gitkeep
+
+# Python + Docker noise
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Editor/OS metadata
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  default:
+    desc: 📋 Show available ffmpegfyMe tasks
+    cmds:
+      - task --list
+
+  docker:build:
+    desc: 🔧 Build the ffmpegfyMe Docker image
+    cmds:
+      - docker compose build
+
+  ffmpegfy:run:
+    desc: 🎬 Run the ffmpegfyMe interactive downloader
+    cmds:
+      - docker compose run --rm ffmpegfy-me

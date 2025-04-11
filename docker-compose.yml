@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  ffmpegfy-me:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ./in:/app/in
+      - ./out:/app/out
+      - ./progress:/app/progress
+    command: python ffmpegfyMe.py
