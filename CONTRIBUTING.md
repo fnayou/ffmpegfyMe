@@ -27,7 +27,8 @@ Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
 
 ## Tests and CI
 
-- No local test command is available yet on this branch.
+- Run the Python test suite locally with `python3 -m unittest discover -v`.
+- The Python test suite runs on PRs and pushes to main.
 - Watch the required CI checks on the pull request and run the current CI
   checks before requesting review.
 
