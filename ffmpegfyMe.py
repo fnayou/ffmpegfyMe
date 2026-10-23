@@ -1,6 +1,6 @@
-import subprocess, json, sys, time, re, ipaddress
+import subprocess, json, sys, time, re, ipaddress, os
 from pathlib import Path
-from typing import Any, Callable, List, Dict, Optional
+from typing import Any, Callable, List, Dict, Optional, Tuple
 import urllib.parse
 
 # === ffmpegfyMe Configuration ===
@@ -217,6 +217,45 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
         downloads.append(entry)
 
     return downloads
+
+
+def resolve_request_auth(
+    item: Dict[str, Any],
+    environment: Optional[Dict[str, str]] = None,
+) -> Tuple[Dict[str, str], Optional[str]]:
+    env: Dict[str, str] = dict(environment) if environment is not None else dict(os.environ)
+
+    resolved_headers: Dict[str, str] = {}
+    headers = item.get("headers") or {}
+    for header_name, header_value in headers.items():
+        if not _is_valid_env_reference(header_value):
+            raise ValueError("Authentication header value must be an environment variable reference.")
+        env_name = ENV_REFERENCE_PATTERN.fullmatch(header_value).group(1)
+        resolved_value = env.get(env_name)
+        if not isinstance(resolved_value, str) or resolved_value == "":
+            raise ValueError("Authentication environment value is missing or empty.")
+        if any(ord(char) < 32 or 0x7F <= ord(char) <= 0x9F for char in resolved_value):
+            raise ValueError("Authentication header value contains unsupported characters.")
+        resolved_headers[header_name] = resolved_value
+
+    resolved_cookies: Optional[str] = None
+    cookies = item.get("cookies")
+    if cookies is not None:
+        if not _is_valid_env_reference(cookies):
+            raise ValueError("Authentication cookies must be an environment variable reference.")
+        env_name = ENV_REFERENCE_PATTERN.fullmatch(cookies).group(1)
+        resolved_cookies = env.get(env_name)
+        if not isinstance(resolved_cookies, str) or resolved_cookies == "":
+            raise ValueError("Authentication environment value is missing or empty.")
+        if any(
+            char != "\n" and (ord(char) < 32 or 0x7F <= ord(char) <= 0x9F)
+            for char in resolved_cookies
+        ):
+            raise ValueError("Authentication cookies value contains unsupported characters.")
+
+    if not resolved_headers and resolved_cookies is None:
+        return {}, None
+    return resolved_headers, resolved_cookies
 
 
 def validate_output_filename(filename: str) -> str:
