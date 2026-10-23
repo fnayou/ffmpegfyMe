@@ -8,6 +8,7 @@
 
 ## Workers
 - Delegate through Herdr Pi only, using provider `lmstudio` and model `flint@q3_k_xl`.
+- Start each Pi worker in a newly split Herdr pane in the active worktree workspace. Leave the workspace root pane available so the operator can watch and interact with the worker.
 - Keep worker writes inside the assigned worktree. Verify every result from Git and files.
 
 ## Engineering workflow
