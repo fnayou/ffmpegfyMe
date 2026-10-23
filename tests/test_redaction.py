@@ -79,6 +79,54 @@ class RunFFmpegErrorRedactionTests(unittest.TestCase):
         self.assertNotIn(str(runtime_error), output)
 
 
+class RunFFmpegProgressRedactionTests(unittest.TestCase):
+    URL_SENTINEL = "https://cdn.example/private.m3u8?token=supersecret-progress-token"
+    HEADER_SENTINEL = "Authorization: Bearer supersecret-progress-header"
+    COOKIE_SENTINEL = "session=supersecret-progress-cookie"
+    SEGMENT_SENTINEL = "https://cdn.example.com/private/segment-1.m3u8?token=supersecret-segment-token"
+
+    def test_run_ffmpeg_progress_lines_redact_secrets(self) -> None:
+        command = [
+            "ffmpeg", "-y",
+            "-protocol_whitelist", "http,https,tcp,tls,crypto",
+            "-i", self.URL_SENTINEL,
+            "-headers", self.HEADER_SENTINEL,
+            "-cookies", self.COOKIE_SENTINEL,
+            "-c", "copy", "out/video1.mp4",
+        ]
+        frame_line = (
+            f"frame=  5 fps=0.25 q=0.0 size=123kB time=00:00:01.0 "
+            f"sources={self.URL_SENTINEL} "
+            f"headers={self.HEADER_SENTINEL} "
+            f"cookies={self.COOKIE_SENTINEL} "
+            f"segment={self.SEGMENT_SENTINEL}"
+        )
+        buffer = io.StringIO()
+        lines: List[str] = []
+        with mock.patch("ffmpegfyMe.subprocess.Popen") as popen:
+            process = popen.return_value
+            process.poll.side_effect = [None, 0]
+            process.stdout.readline.return_value = frame_line + "\n"
+            process.returncode = 0
+            with redirect_stdout(buffer):
+                exit_code = ffmpegfyMe.run_ffmpeg(command, on_output=lines.append)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("frame=", lines[0])
+        self.assertNotIn(self.URL_SENTINEL, lines[0])
+        self.assertNotIn(self.HEADER_SENTINEL, lines[0])
+        self.assertNotIn(self.COOKIE_SENTINEL, lines[0])
+        self.assertNotIn(self.SEGMENT_SENTINEL, lines[0])
+        self.assertNotIn("https://", lines[0])
+        stdout_output = buffer.getvalue()
+        self.assertIn("frame=", stdout_output)
+        self.assertNotIn(self.URL_SENTINEL, stdout_output)
+        self.assertNotIn(self.HEADER_SENTINEL, stdout_output)
+        self.assertNotIn(self.COOKIE_SENTINEL, stdout_output)
+        self.assertNotIn(self.SEGMENT_SENTINEL, stdout_output)
+        self.assertNotIn("https://", stdout_output)
+
+
 class DownloadSummaryRedactionTests(unittest.TestCase):
     def test_download_summary_excludes_source_urls(self) -> None:
         downloads: List[Dict[str, str]] = [
