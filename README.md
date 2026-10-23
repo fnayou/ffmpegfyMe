@@ -89,6 +89,18 @@ task ffmpegfy:run
 
 ---
 
+## Tests
+
+Run the Python test suite:
+
+```bash
+python3 -m unittest discover -v
+```
+
+GitHub Actions runs it on pull requests to `main` and pushes to `main`.
+
+---
+
 ## Dependencies
 
 -   Python 3.11+
