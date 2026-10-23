@@ -110,6 +110,13 @@ GitHub Actions runs it on pull requests to `main` and pushes to `main`.
 
 ---
 
+## Community
+
+-   [Code of Conduct](CODE_OF_CONDUCT.md)
+-   [Contributing](CONTRIBUTING.md)
+-   [Security](SECURITY.md)
+-   [Support](SUPPORT.md)
+
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
