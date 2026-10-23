@@ -68,6 +68,27 @@ task ffmpegfy:run
 
 ---
 
+## Docker
+
+-   Base image: `python:3.11-slim-bookworm`
+-   FFmpeg pinned to Debian Bookworm package `7:5.1.9-0+deb12u1` (ffmpeg + ffprobe report `5.1.9`)
+-   Source: <https://packages.debian.org/bookworm/ffmpeg>
+
+### Runtime data & secrets
+
+-   Image contains code only — no Git metadata, manifests, credentials, media, output, or progress state.
+-   Manifests (`in/`), credentials (`.env`), outputs (`out/`), progress state (`progress/`) are supplied at runtime via bind mounts / env file.
+
+```bash
+task docker:build
+task docker:smoke
+task ffmpegfy:run
+```
+
+-   Secrets live in `.env` (git-ignored) and are injected via `env_file` at runtime only.
+
+---
+
 ## Dependencies
 
 -   Python 3.11+
