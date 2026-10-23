@@ -154,6 +154,115 @@ class LoadDownloadsValidationTests(unittest.TestCase):
             {"url": VALID_URL, "output": "video1.mp4", "id": "x" * 129},
         ])
 
+    def test_accepts_headers_and_cookies_with_env_references(self) -> None:
+        downloads = self.load([
+            {
+                "url": VALID_URL,
+                "output": "video1.mp4",
+                "headers": {"Authorization": "${API_TOKEN}"},
+                "cookies": "${SESSION_ID}",
+            },
+        ])
+        self.assertEqual(downloads[0]["headers"], {"Authorization": "${API_TOKEN}"})
+        self.assertEqual(downloads[0]["cookies"], "${SESSION_ID}")
+
+    def test_accepts_multiple_headers_with_env_references(self) -> None:
+        downloads = self.load([
+            {
+                "url": VALID_URL,
+                "output": "video1.mp4",
+                "headers": {
+                    "Authorization": "${API_TOKEN}",
+                    "X-Custom-Header": "${CUSTOM_TOKEN}",
+                    "User-Agent": "${UA_NAME}",
+                },
+            },
+        ])
+        self.assertEqual(
+            downloads[0]["headers"],
+            {
+                "Authorization": "${API_TOKEN}",
+                "X-Custom-Header": "${CUSTOM_TOKEN}",
+                "User-Agent": "${UA_NAME}",
+            },
+        )
+
+    def test_accepts_entry_without_auth_unchanged(self) -> None:
+        downloads = self.load([
+            {"url": VALID_URL, "output": "video1.mp4"},
+        ])
+        self.assertEqual(downloads[0], {"url": VALID_URL, "output": "video1.mp4"})
+
+    def test_rejects_headers_with_wrong_type(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "headers": "Authorization=${API_TOKEN}"},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "headers": ["Authorization"]},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "headers": 123},
+        ])
+
+    def test_rejects_literal_header_values(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "headers": {"Authorization": "Bearer abc"}},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "headers": {"Token": "secret-value"}},
+        ])
+
+    def test_rejects_malformed_or_embedded_env_references_in_headers(self) -> None:
+        for value in [
+            "${TOKEN",
+            "${}",
+            "${1BAD}",
+            "prefix${TOKEN}",
+            "${TOKEN}suffix",
+            "plain-value",
+        ]:
+            self.assert_load_rejected([
+                {"url": VALID_URL, "output": "video1.mp4", "headers": {"Authorization": value}},
+            ])
+
+    def test_rejects_invalid_header_names(self) -> None:
+        for name in ["bad header", "bad:header", ""]:
+            self.assert_load_rejected([
+                {"url": VALID_URL, "output": "video1.mp4", "headers": {name: "${TOKEN}"}},
+            ])
+
+    def test_rejects_case_insensitive_duplicate_header_names(self) -> None:
+        self.assert_load_rejected([
+            {
+                "url": VALID_URL,
+                "output": "video1.mp4",
+                "headers": {"Authorization": "${TOKEN_A}", "authorization": "${TOKEN_B}"},
+            },
+        ])
+
+    def test_rejects_cookies_with_wrong_type_or_invalid_value(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": {"session": "${SESSION_ID}"}},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": ["${SESSION_ID}"]},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": 123},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": "SESSION_ID"},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": "${SESSION_ID"},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": "${SESSION ID}"},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "cookies": "${SESSION_ID}extra"},
+        ])
+
 
 class ValidateOutputFilenameTests(unittest.TestCase):
     def test_returns_safe_filename(self) -> None:

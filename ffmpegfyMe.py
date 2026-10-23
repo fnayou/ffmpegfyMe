@@ -1,6 +1,6 @@
 import subprocess, json, sys, time, re, ipaddress
 from pathlib import Path
-from typing import Callable, List, Dict, Optional
+from typing import Any, Callable, List, Dict, Optional
 import urllib.parse
 
 # === ffmpegfyMe Configuration ===
@@ -9,7 +9,17 @@ IN_DIR = Path("in")
 OUT_DIR = Path("out")
 PROGRESS_DIR = Path("progress")
 MAX_STABLE_ID_LENGTH = 128
-ALLOWED_ITEM_FIELDS = {"url", "output", "id"}
+ALLOWED_ITEM_FIELDS = {"url", "output", "id", "headers", "cookies"}
+ENV_REFERENCE_PATTERN = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
+HTTP_TOKEN_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+
+
+def _is_valid_env_reference(value: Any) -> bool:
+    return isinstance(value, str) and ENV_REFERENCE_PATTERN.fullmatch(value) is not None
+
+
+def _is_valid_http_token_header_name(name: Any) -> bool:
+    return isinstance(name, str) and HTTP_TOKEN_PATTERN.fullmatch(name) is not None
 
 
 def list_json_files() -> List[Path]:
@@ -171,9 +181,39 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
             sys.exit(1)
         seen_outputs.add(output.casefold())
 
+        headers: Optional[Dict[str, str]] = None
+        cookies: Optional[str] = None
+        if "headers" in item:
+            headers = item["headers"]
+            if not isinstance(headers, dict):
+                print(f"❌ Invalid headers at entry index {index}. Must be an object mapping header names to environment references.")
+                sys.exit(1)
+            seen_header_names = set()
+            for header_name, header_value in headers.items():
+                if not _is_valid_http_token_header_name(header_name):
+                    print(f"❌ Invalid header name at entry index {index}. Must be a valid HTTP token header name.")
+                    sys.exit(1)
+                lowered_name = header_name.lower()
+                if lowered_name in seen_header_names:
+                    print(f"❌ Duplicate header name at entry index {index}. Header names must be unique.")
+                    sys.exit(1)
+                seen_header_names.add(lowered_name)
+                if not _is_valid_env_reference(header_value):
+                    print(f"❌ Invalid header value at entry index {index}. Must be an environment variable reference.")
+                    sys.exit(1)
+        if "cookies" in item:
+            cookies = item["cookies"]
+            if not _is_valid_env_reference(cookies):
+                print(f"❌ Invalid cookies at entry index {index}. Must be a single environment variable reference.")
+                sys.exit(1)
+
         entry = {"url": url, "output": output}
         if stable_id is not None:
             entry["id"] = stable_id
+        if headers is not None:
+            entry["headers"] = headers
+        if cookies is not None:
+            entry["cookies"] = cookies
         downloads.append(entry)
 
     return downloads
