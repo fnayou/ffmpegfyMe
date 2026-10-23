@@ -152,6 +152,37 @@ class DownloadStreamProgressRedactionTests(unittest.TestCase):
         self.assertNotIn("https://", stdout_output)
 
 
+class DownloadStreamRunnerErrorRedactionTests(unittest.TestCase):
+    SIGNED_URL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
+    AUTH_HEADER_VALUE = "Authorization: Bearer header-secret-123"
+    COOKIE_VALUE = "session=cookie-secret-456"
+
+    def test_download_stream_runner_error_redacts_secrets_and_returns_false(self) -> None:
+        buffer = io.StringIO()
+
+        def failing_runner(cmd, on_output=None):
+            raise RuntimeError(
+                f"ffmpeg crashed: {self.SIGNED_URL} auth={self.AUTH_HEADER_VALUE} cookie={self.COOKIE_VALUE}"
+            )
+
+        with redirect_stdout(buffer):
+            result = ffmpegfyMe.download_stream(
+                self.SIGNED_URL,
+                Path("out") / "video1.mp4",
+                runner=failing_runner,
+                headers={"Authorization": "Bearer header-secret-123"},
+                cookies="session=cookie-secret-456",
+            )
+
+        self.assertFalse(result)
+        output = buffer.getvalue()
+        self.assertNotIn(self.SIGNED_URL, output)
+        self.assertNotIn("token=abc", output)
+        self.assertNotIn("sig=supersecretvalue", output)
+        self.assertNotIn("header-secret-123", output)
+        self.assertNotIn("cookie-secret-456", output)
+
+
 class DownloadSummaryRedactionTests(unittest.TestCase):
     def test_download_summary_excludes_source_urls(self) -> None:
         downloads: List[Dict[str, str]] = [
