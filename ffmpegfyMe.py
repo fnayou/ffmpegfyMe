@@ -351,7 +351,8 @@ def download_stream(
         ]
 
         def report_progress(line: str) -> None:
-            print(f"\r{line.strip()}", end='')
+            safe_line = _redact_line(cmd, line)
+            print(f"\r{safe_line.strip()}", end='')
 
         exit_code = (runner or run_ffmpeg)(cmd, on_output=report_progress)
         return exit_code == 0

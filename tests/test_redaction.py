@@ -2,6 +2,7 @@ import io
 import subprocess
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from typing import Dict, List, Tuple
 from unittest import mock
 
@@ -124,6 +125,30 @@ class RunFFmpegProgressRedactionTests(unittest.TestCase):
         self.assertNotIn(self.HEADER_SENTINEL, stdout_output)
         self.assertNotIn(self.COOKIE_SENTINEL, stdout_output)
         self.assertNotIn(self.SEGMENT_SENTINEL, stdout_output)
+        self.assertNotIn("https://", stdout_output)
+
+
+class DownloadStreamProgressRedactionTests(unittest.TestCase):
+    URL_SENTINEL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
+
+    def test_download_stream_runner_progress_output_redacts_secrets(self) -> None:
+        buffer = io.StringIO()
+
+        def fake_runner(cmd, on_output=None):
+            on_output(f"frame=2 sources={self.URL_SENTINEL}")
+            return 0
+
+        with redirect_stdout(buffer):
+            result = ffmpegfyMe.download_stream(
+                self.URL_SENTINEL,
+                Path("out") / "video1.mp4",
+                runner=fake_runner,
+            )
+
+        self.assertTrue(result)
+        stdout_output = buffer.getvalue()
+        self.assertIn("frame=2", stdout_output)
+        self.assertNotIn(self.URL_SENTINEL, stdout_output)
         self.assertNotIn("https://", stdout_output)
 
 
