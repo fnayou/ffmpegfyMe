@@ -288,11 +288,11 @@ def run_ffmpeg(
 
         return process.returncode
 
-    except subprocess.SubprocessError as e:
-        print(f"❌ FFmpeg error: {e}")
+    except subprocess.SubprocessError:
+        print("❌ FFmpeg error occurred.")
         return 1
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+    except Exception:
+        print("❌ Unexpected error occurred.")
         return 1
 
 
