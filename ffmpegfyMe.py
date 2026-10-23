@@ -1,6 +1,6 @@
 import subprocess, json, sys, time
 from pathlib import Path
-from typing import List, Dict
+from typing import Callable, List, Dict, Optional
 import urllib.parse
 import os
 
@@ -78,7 +78,38 @@ def validate_output_filename(filename: str) -> str:
     return safe_name
 
 
-def download_stream(url: str, output_path: Path) -> bool:
+def run_ffmpeg(
+    command: List[str],
+    on_output: Optional[Callable[[str], None]] = None,
+) -> int:
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+
+        while process.poll() is None:
+            line = process.stdout.readline()
+            if line and ("frame=" in line or "size=" in line or "time=" in line):
+                if on_output is not None:
+                    on_output(line)
+                print(f"\r{line.strip()}", end='')
+        print()
+
+        return process.returncode
+
+    except subprocess.SubprocessError as e:
+        print(f"❌ FFmpeg error: {e}")
+        return 1
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        return 1
+
+
+def download_stream(url: str, output_path: Path, runner: Optional[Callable] = None) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
         print(f"❌ Invalid URL format: {url}")
@@ -98,21 +129,11 @@ def download_stream(url: str, output_path: Path) -> bool:
             str(output_path)
         ]
 
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
+        def report_progress(line: str) -> None:
+            print(f"\r{line.strip()}", end='')
 
-        while process.poll() is None:
-            line = process.stdout.readline()
-            if line and ("frame=" in line or "size=" in line or "time=" in line):
-                print(f"\r{line.strip()}", end='')
-        print()
-
-        return process.returncode == 0
+        exit_code = (runner or run_ffmpeg)(cmd, on_output=report_progress)
+        return exit_code == 0
 
     except subprocess.SubprocessError as e:
         print(f"❌ FFmpeg error: {e}")
@@ -160,19 +181,19 @@ def display_download_summary(downloads: List[Dict[str, str]], start_index: int) 
     print()
 
 
-def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2) -> bool:
+def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None) -> bool:
     for attempt in range(max_retries + 1):
         if attempt > 0:
             print(f"⚠️ Retry attempt {attempt}/{max_retries}...")
             time.sleep(2)
 
-        if download_stream(item['url'], output_path):
+        if download_stream(item['url'], output_path, runner=runner):
             return True
 
     return False
 
 
-def main() -> None:
+def main(runner: Optional[Callable] = None) -> None:
     IN_DIR.mkdir(exist_ok=True)
     OUT_DIR.mkdir(exist_ok=True)
     PROGRESS_DIR.mkdir(exist_ok=True)
@@ -250,7 +271,7 @@ def main() -> None:
                 print("⏭️  Skipped.")
                 continue
 
-        success = download_with_retry(item, output_path)
+        success = download_with_retry(item, output_path, runner=runner)
 
         if success:
             print(f"✅ Successfully downloaded: {safe_filename}")
