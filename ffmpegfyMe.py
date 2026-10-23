@@ -1,14 +1,15 @@
-import subprocess, json, sys, time
+import subprocess, json, sys, time, re
 from pathlib import Path
 from typing import Callable, List, Dict, Optional
 import urllib.parse
-import os
 
 # === ffmpegfyMe Configuration ===
 PROJECT_NAME = "ffmpegfyMe"
 IN_DIR = Path("in")
 OUT_DIR = Path("out")
 PROGRESS_DIR = Path("progress")
+MAX_STABLE_ID_LENGTH = 128
+ALLOWED_ITEM_FIELDS = {"url", "output", "id"}
 
 
 def list_json_files() -> List[Path]:
@@ -50,21 +51,62 @@ def save_state(state_file: Path, index: int) -> None:
         json.dump({"last_index": index}, f)
 
 
+def _is_valid_http_url(url: str) -> bool:
+    if not isinstance(url, str) or not url:
+        return False
+    if any(ord(char) < 32 or ord(char) == 127 or char.isspace() for char in url):
+        return False
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    if not parsed.netloc or parsed.username is not None or parsed.password is not None:
+        return False
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
+    if port is not None and not 0 <= port <= 65535:
+        return False
+    host = parsed.hostname or ""
+    host_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*"
+    if not re.fullmatch(host_pattern, host):
+        return False
+    return True
+
+
+def _is_valid_output_filename(filename: str) -> bool:
+    if not isinstance(filename, str) or not filename:
+        return False
+    if filename in (".", ".."):
+        return False
+    if "/" in filename or "\\" in filename:
+        return False
+    if any(ord(char) < 32 or ord(char) == 127 for char in filename):
+        return False
+    if not filename.strip():
+        return False
+    return True
+
+
+def _is_valid_stable_id(item_id: str) -> bool:
+    """Stable ids are public batch identifiers; must not contain secrets."""
+    if not isinstance(item_id, str) or not item_id:
+        return False
+    if len(item_id) > MAX_STABLE_ID_LENGTH:
+        return False
+    if any(ord(char) < 32 or ord(char) == 127 for char in item_id):
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", item_id):
+        return False
+    if item_id in (".", ".."):
+        return False
+    return True
+
+
 def load_downloads(json_file: Path) -> List[Dict[str, str]]:
     try:
         with open(json_file) as f:
             data = json.load(f)
-
-        if not isinstance(data, list):
-            print("❌ Error: JSON must be a list of objects.")
-            sys.exit(1)
-
-        for i, item in enumerate(data):
-            if not isinstance(item, dict) or 'url' not in item or 'output' not in item:
-                print(f"❌ Invalid entry at index {i}. Must contain 'url' and 'output'.")
-                sys.exit(1)
-
-        return data
     except json.JSONDecodeError:
         print("❌ Error: Invalid JSON format.")
         sys.exit(1)
@@ -72,10 +114,67 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
         print(f"❌ File not found: {json_file}")
         sys.exit(1)
 
+    if not isinstance(data, list):
+        print("❌ Error: JSON must be a list of objects.")
+        sys.exit(1)
+
+    downloads: List[Dict[str, str]] = []
+    seen_ids = set()
+    seen_outputs = set()
+
+    for index, item in enumerate(data):
+        if not isinstance(item, dict):
+            print(f"❌ Invalid entry at index {index}. Must be an object.")
+            sys.exit(1)
+
+        unknown_fields = sorted(set(item) - ALLOWED_ITEM_FIELDS)
+        if unknown_fields:
+            print(f"❌ Invalid entry at index {index}. Unknown fields: {', '.join(unknown_fields)}.")
+            sys.exit(1)
+
+        if "url" not in item or "output" not in item:
+            print(f"❌ Invalid entry at index {index}. Must contain 'url' and 'output'.")
+            sys.exit(1)
+
+        url = item["url"]
+        output = item["output"]
+        if not _is_valid_http_url(url):
+            print(f"❌ Invalid URL at entry index {index}. Must be a nonempty absolute HTTP/HTTPS URL.")
+            sys.exit(1)
+
+        if not _is_valid_output_filename(output):
+            print(f"❌ Invalid output filename at entry index {index}.")
+            sys.exit(1)
+
+        stable_id = None
+        if "id" in item:
+            stable_id = item["id"]
+            if not _is_valid_stable_id(stable_id):
+                print(f"❌ Invalid stable id at entry index {index}. Must be a safe identifier.")
+                sys.exit(1)
+            if stable_id in seen_ids:
+                print(f"❌ Duplicate stable id at entry index {index}.")
+                sys.exit(1)
+            seen_ids.add(stable_id)
+
+        if output in seen_outputs:
+            print(f"❌ Duplicate output destination at entry index {index}.")
+            sys.exit(1)
+        seen_outputs.add(output)
+
+        entry = {"url": url, "output": output}
+        if stable_id is not None:
+            entry["id"] = stable_id
+        downloads.append(entry)
+
+    return downloads
+
 
 def validate_output_filename(filename: str) -> str:
-    safe_name = os.path.basename(filename).replace(" ", "_")
-    return safe_name
+    if not _is_valid_output_filename(filename):
+        print("❌ Invalid output filename.")
+        sys.exit(1)
+    return filename
 
 
 def run_ffmpeg(
@@ -112,7 +211,7 @@ def run_ffmpeg(
 def download_stream(url: str, output_path: Path, runner: Optional[Callable] = None) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
-        print(f"❌ Invalid URL format: {url}")
+        print("❌ Invalid URL format.")
         return False
 
     try:
