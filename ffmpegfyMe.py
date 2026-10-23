@@ -257,7 +257,13 @@ def run_ffmpeg(
         return 1
 
 
-def download_stream(url: str, output_path: Path, runner: Optional[Callable] = None) -> bool:
+def download_stream(
+    url: str,
+    output_path: Path,
+    runner: Optional[Callable] = None,
+    headers: Optional[Dict[str, str]] = None,
+    cookies: Optional[str] = None,
+) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
         print("❌ Invalid URL format.")
@@ -267,8 +273,15 @@ def download_stream(url: str, output_path: Path, runner: Optional[Callable] = No
         output_path.parent.mkdir(parents=True, exist_ok=True)
         print(f"⏳ Starting download to {output_path.name}...")
 
-        cmd = [
+        cmd: List[str] = [
             'ffmpeg', '-y',
+            '-protocol_whitelist', 'http,https,tcp,tls,crypto',
+        ]
+        if headers:
+            cmd += ['-headers', "\r\n".join(f"{name}: {value}" for name, value in headers.items())]
+        if cookies:
+            cmd += ['-cookies', cookies]
+        cmd += [
             '-i', url,
             '-c', 'copy',
             '-bsf:a', 'aac_adtstoasc',

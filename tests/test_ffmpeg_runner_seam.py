@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 from unittest import mock
 
 import ffmpegfyMe
@@ -101,8 +101,10 @@ class TestDownloadStreamIntegration(unittest.TestCase):
         cmd = fake.commands[0]
         self.assertEqual(cmd[0], "ffmpeg")
         self.assertEqual(cmd[1], "-y")
-        self.assertEqual(cmd[2], "-i")
-        self.assertEqual(cmd[3], self.url)
+        self.assertEqual(cmd[2], "-protocol_whitelist")
+        self.assertEqual(cmd[3], "http,https,tcp,tls,crypto")
+        self.assertEqual(cmd[4], "-i")
+        self.assertEqual(cmd[5], self.url)
         self.assertEqual(cmd[-1], str(self.output_path))
 
     def test_progress_lines_flow_through_callback(self) -> None:
@@ -120,6 +122,79 @@ class TestDownloadStreamIntegration(unittest.TestCase):
         fake = FakeFFmpegRunner(cancel=True)
         with self.assertRaises(KeyboardInterrupt):
             ffmpegfyMe.download_stream(self.url, self.output_path, runner=fake)
+
+
+class TestDownloadStreamCommandConstruction(unittest.TestCase):
+    """download_stream must build a constrained authenticated FFmpeg input command."""
+
+    ALLOWED_PROTOCOLS = "http,https,tcp,tls,crypto"
+
+    def setUp(self) -> None:
+        self.url = "https://cdn.example.com/video1.m3u8"
+        self.output_path = Path("out") / "video1.mp4"
+
+    def _build_command(self, headers: Optional[Dict[str, str]] = None, cookies: Optional[str] = None) -> List[str]:
+        fake = FakeFFmpegRunner(exit_code=0)
+        success = ffmpegfyMe.download_stream(
+            self.url,
+            self.output_path,
+            runner=fake,
+            headers=headers,
+            cookies=cookies,
+        )
+        self.assertTrue(success)
+        self.assertEqual(len(fake.commands), 1)
+        return fake.commands[0]
+
+    def test_no_auth_command_constrains_protocols_before_input(self) -> None:
+        cmd = self._build_command()
+        self.assertEqual(cmd[0], "ffmpeg")
+        self.assertEqual(cmd[1], "-y")
+        self.assertEqual(cmd[2], "-protocol_whitelist")
+        self.assertEqual(cmd[3], self.ALLOWED_PROTOCOLS)
+        self.assertEqual(cmd[4], "-i")
+        self.assertEqual(cmd[5], self.url)
+        self.assertEqual(cmd[-1], str(self.output_path))
+
+    def test_no_auth_command_omits_auth_options(self) -> None:
+        cmd = self._build_command()
+        self.assertNotIn("-headers", cmd)
+        self.assertNotIn("-cookies", cmd)
+
+    def test_auth_command_passes_headers_and_cookies_before_input(self) -> None:
+        cmd = self._build_command(
+            headers={"Authorization": "Bearer real-token"},
+            cookies="session=real-session",
+        )
+        self.assertEqual(cmd[cmd.index("-protocol_whitelist") + 1], self.ALLOWED_PROTOCOLS)
+        self.assertEqual(cmd[cmd.index("-headers") + 1], "Authorization: Bearer real-token")
+        self.assertEqual(cmd[cmd.index("-cookies") + 1], "session=real-session")
+        self.assertLess(cmd.index("-protocol_whitelist"), cmd.index("-i"))
+        self.assertLess(cmd.index("-headers"), cmd.index("-i"))
+        self.assertLess(cmd.index("-cookies"), cmd.index("-i"))
+
+    def test_headers_formatted_as_crlf_separated_name_value_lines(self) -> None:
+        cmd = self._build_command(
+            headers={"Authorization": "Bearer tok", "X-Custom-Header": "custom-value"},
+            cookies=None,
+        )
+        self.assertEqual(
+            cmd[cmd.index("-headers") + 1],
+            "Authorization: Bearer tok\r\nX-Custom-Header: custom-value",
+        )
+
+    def test_protocol_whitelist_excludes_disallowed_protocols(self) -> None:
+        cmd = self._build_command()
+        whitelist = cmd[cmd.index("-protocol_whitelist") + 1]
+        protocols = whitelist.split(",")
+        self.assertIn("http", protocols)
+        self.assertIn("https", protocols)
+        self.assertIn("tcp", protocols)
+        self.assertIn("tls", protocols)
+        self.assertIn("crypto", protocols)
+        self.assertNotIn("file", protocols)
+        self.assertNotIn("ftp", protocols)
+        self.assertNotIn("data", protocols)
 
 
 class TestRealFFmpegAdapter(unittest.TestCase):
