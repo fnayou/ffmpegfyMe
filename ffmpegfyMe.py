@@ -265,6 +265,26 @@ def validate_output_filename(filename: str) -> str:
     return filename
 
 
+REDACTED_PLACEHOLDER = "[REDACTED]"
+FFMPEG_REDACTED_URL_PATTERN = re.compile(r"https?://[^\s]*", re.IGNORECASE)
+
+
+def _redact_line(command: List[str], line: str) -> str:
+    safe_line = line
+    secret_values: List[str] = []
+    for flag in ("-i", "-headers", "-cookies"):
+        try:
+            index = command.index(flag)
+        except ValueError:
+            continue
+        if index + 1 < len(command):
+            secret_values.append(command[index + 1])
+    for value in secret_values:
+        if value:
+            safe_line = safe_line.replace(value, REDACTED_PLACEHOLDER)
+    return FFMPEG_REDACTED_URL_PATTERN.sub(REDACTED_PLACEHOLDER, safe_line)
+
+
 def run_ffmpeg(
     command: List[str],
     on_output: Optional[Callable[[str], None]] = None,
@@ -281,9 +301,10 @@ def run_ffmpeg(
         while process.poll() is None:
             line = process.stdout.readline()
             if line and ("frame=" in line or "size=" in line or "time=" in line):
+                safe_line = _redact_line(command, line)
                 if on_output is not None:
-                    on_output(line)
-                print(f"\r{line.strip()}", end='')
+                    on_output(safe_line)
+                print(f"\r{safe_line.strip()}", end='')
         print()
 
         return process.returncode
