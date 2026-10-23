@@ -1,3 +1,4 @@
+import os
 import unittest
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
@@ -222,6 +223,71 @@ class TestRealFFmpegAdapter(unittest.TestCase):
             lines,
             ["frame=  5 fps=0.25 q=0.0 size=123kB time=00:00:01.0"],
         )
+
+
+class TestDownloadWithRetryAuthWiring(unittest.TestCase):
+    """download_with_retry must resolve environment auth before the retry loop."""
+
+    def setUp(self) -> None:
+        self.url = "https://cdn.example.com/video1.m3u8"
+        self.output_path = Path("out") / "video1.mp4"
+
+    def _auth_item(self, header_value: str = "${API_TOKEN}", cookies: Optional[str] = None) -> Dict[str, str]:
+        item: Dict[str, str] = {
+            "url": self.url,
+            "output": "video1.mp4",
+            "headers": {"Authorization": header_value},
+        }
+        if cookies is not None:
+            item["cookies"] = cookies
+        return item
+
+    def test_configured_env_values_reach_runner_args(self) -> None:
+        item = {
+            "url": self.url,
+            "output": "video1.mp4",
+            "headers": {"Authorization": "${API_TOKEN}"},
+            "cookies": "${SESSION_ID}",
+        }
+        fake = FakeFFmpegRunner(exit_code=0)
+        with mock.patch.dict(os.environ, {"API_TOKEN": "tok", "SESSION_ID": "session=abc"}):
+            self.assertTrue(ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake))
+        self.assertEqual(len(fake.commands), 1)
+        cmd = fake.commands[0]
+        self.assertEqual(cmd[cmd.index("-headers") + 1], "Authorization: tok")
+        self.assertEqual(cmd[cmd.index("-cookies") + 1], "session=abc")
+
+    def test_missing_env_value_returns_false_before_runner_and_without_retry_sleep(self) -> None:
+        item = self._auth_item()
+        fake = FakeFFmpegRunner(exit_code=0)
+        with mock.patch.dict(os.environ) as env:
+            env.pop("API_TOKEN", None)
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                self.assertFalse(
+                    ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake, max_retries=2)
+                )
+        self.assertEqual(len(fake.commands), 0)
+        sleep.assert_not_called()
+
+    def test_empty_env_value_returns_false_before_runner_and_without_retry_sleep(self) -> None:
+        item = self._auth_item()
+        fake = FakeFFmpegRunner(exit_code=0)
+        with mock.patch.dict(os.environ, {"API_TOKEN": ""}):
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                self.assertFalse(
+                    ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake, max_retries=2)
+                )
+        self.assertEqual(len(fake.commands), 0)
+        sleep.assert_not_called()
+
+    def test_no_auth_item_passes_unauthenticated_command_to_runner(self) -> None:
+        item = {"url": self.url, "output": "video1.mp4"}
+        fake = FakeFFmpegRunner(exit_code=0)
+        self.assertTrue(ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake))
+        self.assertEqual(len(fake.commands), 1)
+        cmd = fake.commands[0]
+        self.assertNotIn("-headers", cmd)
+        self.assertNotIn("-cookies", cmd)
 
 
 if __name__ == "__main__":
