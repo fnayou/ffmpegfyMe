@@ -188,4 +188,3 @@ class LocalHLSFixtureTests(unittest.TestCase):
             self.server.request_log,
             [(PLAYLIST_PATH, True), (SEGMENT_PATH, True)],
         )
-
