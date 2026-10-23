@@ -346,7 +346,7 @@ def download_stream(
 def interactive_menu(links: List[Dict[str, str]]) -> int:
     print("\n🎬 Available videos to download:\n")
     for idx, item in enumerate(links):
-        print(f"{idx}: {item['output']} — {item['url']}")
+        print(f"{idx}: {item['output']}")
     print()
 
     while True:
@@ -465,7 +465,6 @@ def main(runner: Optional[Callable] = None) -> None:
             continue
 
         print(f"\n🎧 Downloading [{i+1}/{len(downloads)}]: {safe_filename}")
-        print(f"➡️  From: {item['url']}")
         print(f"📁 To:   {output_path}")
 
         if mode == '1':
@@ -483,7 +482,7 @@ def main(runner: Optional[Callable] = None) -> None:
             print(f"✅ Successfully downloaded: {safe_filename}")
             save_state(state_file, i + 1)
         else:
-            print(f"❌ Failed to download: {item['url']} after retries")
+            print(f"❌ Failed to download: {safe_filename} after retries")
             if mode == '1':
                 retry = input("Continue with next download? (Y/n): ").strip().lower() or 'y'
                 if retry != 'y':
