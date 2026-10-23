@@ -69,6 +69,48 @@ task docker:build
 task ffmpegfy:run
 ```
 
+### 4. Configure authentication (optional)
+
+Protected sources may require HTTP header or cookie auth.
+
+Supported source and HLS segment protocols are `HTTP`/`HTTPS`. FFmpeg runs with
+`-protocol_whitelist http,https,tcp,tls,crypto`, so nested protocols are restricted.
+
+Manifest example with auth env references (`in/stream-list.json`):
+
+```json
+[
+    {
+        "url": "https://cdn.example.com/video1.m3u8",
+        "output": "video1.mp4",
+        "id": "video-1",
+        "headers": {
+            "Authorization": "${API_TOKEN}"
+        },
+        "cookies": "${SESSION_COOKIE}"
+    }
+]
+```
+
+-   Env references must be exactly `${ENV_NAME}` (e.g. `${API_TOKEN}`, `${SESSION_COOKIE}`).
+-   Values like `Bearer ${API_TOKEN}` are invalid; refs must be exact.
+-   Credentials do not belong in the manifest; only `${ENV_NAME}` placeholders.
+
+Header and cookie auth can serve playlists and segments.
+
+Create a git-ignored `.env` with placeholder example values:
+
+```bash
+API_TOKEN=your-api-token-here
+SESSION_COOKIE=your-session-cookie-here
+```
+
+Compose injects these values at runtime via `env_file`. No real secrets.
+
+Credentials are redacted (shown as `[REDACTED]`) in CLI output, errors, FFmpeg diagnostics, progress, and summaries.
+
+Limitation: local users/processes may inspect credential-bearing FFmpeg arguments while FFmpeg runs.
+
 ---
 
 ## Docker
