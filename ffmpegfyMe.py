@@ -382,12 +382,18 @@ def display_download_summary(downloads: List[Dict[str, str]], start_index: int) 
 
 
 def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None) -> bool:
+    try:
+        headers, cookies = resolve_request_auth(item)
+    except ValueError:
+        print("❌ Authentication configuration error. Download skipped.")
+        return False
+
     for attempt in range(max_retries + 1):
         if attempt > 0:
             print(f"⚠️ Retry attempt {attempt}/{max_retries}...")
             time.sleep(2)
 
-        if download_stream(item['url'], output_path, runner=runner):
+        if download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies):
             return True
 
     return False
