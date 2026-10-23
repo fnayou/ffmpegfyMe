@@ -24,7 +24,7 @@ ffmpegfyMe/
 ├── ffmpegfyMe.py              # Main CLI script
 ├── docker/
 │   └── Dockerfile             # ffmpeg + Python base image
-├── docker-compose.yml         # Compose service: ffmpegfy-me
+├── compose.yml                # Compose service: ffmpegfy-me
 ├── Taskfile.yml               # Task runner integration
 ├── .gitignore
 ├── requirements.txt
