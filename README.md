@@ -49,10 +49,13 @@ Example: `in/stream-list.json`
 [
     {
         "url": "https://cdn.example.com/video1.m3u8",
-        "output": "video1.mp4"
+        "output": "video1.mp4",
+        "id": "video-1"
     }
 ]
 ```
+
+The optional `id` is a public stable identifier and must not contain secrets.
 
 ### 2. Build the container
 

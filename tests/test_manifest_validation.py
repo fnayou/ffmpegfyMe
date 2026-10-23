@@ -106,6 +106,33 @@ class LoadDownloadsValidationTests(unittest.TestCase):
             {"url": VALID_URL, "output": "video1.mp4"},
         ])
 
+    def test_rejects_duplicate_output_destinations_case_insensitive(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "Video1.mp4"},
+            {"url": VALID_URL, "output": "video1.mp4"},
+        ])
+
+    def test_accepts_uppercase_http_scheme(self) -> None:
+        downloads = self.load([{"url": "HTTPS://cdn.example.com/video1.m3u8", "output": "video1.mp4"}])
+        self.assertEqual(len(downloads), 1)
+
+    def test_accepts_valid_ipv4_and_ipv6_hosts(self) -> None:
+        downloads = self.load([
+            {"url": "http://192.168.1.10:8080/v.m3u8", "output": "video1.mp4"},
+            {"url": "https://[2001:db8::1]:8080/v2.m3u8", "output": "video2.mp4"},
+        ])
+        self.assertEqual(len(downloads), 2)
+
+    def test_rejects_malformed_bracket_and_port_urls_cleanly(self) -> None:
+        self.assert_load_rejected([{"url": "https://[::1/x", "output": "video1.mp4"}])
+        self.assert_load_rejected([{"url": "https://cdn.example.com:abc/v.m3u8", "output": "video1.mp4"}])
+
+    def test_rejects_invalid_ipv6_host(self) -> None:
+        self.assert_load_rejected([{"url": "https://[not-an-ip]/v.m3u8", "output": "video1.mp4"}])
+
+    def test_rejects_unicode_cc_control_characters_in_output(self) -> None:
+        self.assert_load_rejected([{"url": VALID_URL, "output": "video1\u0085.mp4"}])
+
     def test_accepts_safe_stable_id(self) -> None:
         downloads = self.load([
             {"url": VALID_URL, "output": "video1.mp4", "id": "video-1"},

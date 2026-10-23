@@ -1,4 +1,4 @@
-import subprocess, json, sys, time, re
+import subprocess, json, sys, time, re, ipaddress
 from pathlib import Path
 from typing import Callable, List, Dict, Optional
 import urllib.parse
@@ -54,9 +54,12 @@ def save_state(state_file: Path, index: int) -> None:
 def _is_valid_http_url(url: str) -> bool:
     if not isinstance(url, str) or not url:
         return False
-    if any(ord(char) < 32 or ord(char) == 127 or char.isspace() for char in url):
+    if any(ord(char) < 32 or 0x7F <= ord(char) <= 0x9F or char.isspace() for char in url):
         return False
-    parsed = urllib.parse.urlparse(url)
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
     if parsed.scheme not in ("http", "https"):
         return False
     if not parsed.netloc or parsed.username is not None or parsed.password is not None:
@@ -68,9 +71,15 @@ def _is_valid_http_url(url: str) -> bool:
     if port is not None and not 0 <= port <= 65535:
         return False
     host = parsed.hostname or ""
-    host_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*"
-    if not re.fullmatch(host_pattern, host):
-        return False
+    if ":" in host:
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            return False
+    else:
+        host_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*"
+        if not re.fullmatch(host_pattern, host):
+            return False
     return True
 
 
@@ -81,7 +90,7 @@ def _is_valid_output_filename(filename: str) -> bool:
         return False
     if "/" in filename or "\\" in filename:
         return False
-    if any(ord(char) < 32 or ord(char) == 127 for char in filename):
+    if any(ord(char) < 32 or 0x7F <= ord(char) <= 0x9F for char in filename):
         return False
     if not filename.strip():
         return False
@@ -94,7 +103,7 @@ def _is_valid_stable_id(item_id: str) -> bool:
         return False
     if len(item_id) > MAX_STABLE_ID_LENGTH:
         return False
-    if any(ord(char) < 32 or ord(char) == 127 for char in item_id):
+    if any(ord(char) < 32 or 0x7F <= ord(char) <= 0x9F for char in item_id):
         return False
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", item_id):
         return False
@@ -157,10 +166,10 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
                 sys.exit(1)
             seen_ids.add(stable_id)
 
-        if output in seen_outputs:
+        if output.casefold() in seen_outputs:
             print(f"❌ Duplicate output destination at entry index {index}.")
             sys.exit(1)
-        seen_outputs.add(output)
+        seen_outputs.add(output.casefold())
 
         entry = {"url": url, "output": output}
         if stable_id is not None:
