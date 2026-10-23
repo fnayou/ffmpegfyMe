@@ -1,10 +1,11 @@
-version: "3.8"
-
 services:
   ffmpegfy-me:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./in:/app/in
       - ./out:/app/out

@@ -1,0 +1,24 @@
+# Git metadata
+.git
+.gitignore
+.gitattributes
+
+# Local runtime data — supplied at runtime via bind mounts
+in
+out
+progress
+
+# Environment / secrets — local only, injected at runtime
+.env
+.env.*
+*.env
+
+# Python build noise
+__pycache__
+*.pyc
+*.pyo
+
+# Editor/OS noise
+.DS_Store
+.idea
+.vscode

@@ -11,6 +11,12 @@ tasks:
     cmds:
       - docker compose build
 
+  docker:smoke:
+    desc: ✅ Smoke check FFmpeg versions and mounted runtime paths
+    cmds:
+      - docker compose build
+      - docker compose run --rm --no-deps --entrypoint /bin/sh ffmpegfy-me -c /app/docker/smoke-check.sh
+
   ffmpegfy:run:
     desc: 🎬 Run the ffmpegfyMe interactive downloader
     cmds:
