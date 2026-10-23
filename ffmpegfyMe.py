@@ -358,10 +358,10 @@ def download_stream(
         return exit_code == 0
 
     except subprocess.SubprocessError as e:
-        print(f"❌ FFmpeg error: {e}")
+        print(f"❌ FFmpeg error: {_redact_line(cmd, str(e))}")
         return False
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"❌ Unexpected error: {_redact_line(cmd, str(e))}")
         return False
 
 
