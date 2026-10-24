@@ -378,17 +378,31 @@ def download_stream(
     runner: Optional[Callable] = None,
     headers: Optional[Dict[str, str]] = None,
     cookies: Optional[str] = None,
+    allow_overwrite: bool = False,
 ) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
         print("❌ Invalid URL format.")
         return False
 
+    if not allow_overwrite and output_path.exists():
+        print("❌ Output file already exists. Use allow_overwrite to replace it.")
+        return False
+
     cmd: List[str] = []
+    temp_path: Optional[Path] = None
 
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         print(f"⏳ Starting download to {output_path.name}...")
+
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(output_path.parent),
+            prefix=f".{output_path.stem}.",
+            suffix=output_path.suffix,
+        )
+        os.close(fd)
+        temp_path = Path(tmp_name)
 
         cmd = [
             'ffmpeg', '-y',
@@ -405,7 +419,7 @@ def download_stream(
             '-dn',
             '-stats',
             '-loglevel', 'warning',
-            str(output_path)
+            str(temp_path)
         ]
 
         def report_progress(line: str) -> None:
@@ -413,7 +427,19 @@ def download_stream(
             print(f"\r{safe_line.strip()}", end='')
 
         exit_code = (runner or run_ffmpeg)(cmd, on_output=report_progress)
-        return exit_code == 0
+
+        if exit_code == 0:
+            if allow_overwrite:
+                os.replace(temp_path, output_path)
+            else:
+                try:
+                    os.link(temp_path, output_path)
+                except FileExistsError:
+                    print("❌ Output file already exists. Use allow_overwrite to replace it.")
+                    return False
+            return True
+
+        return False
 
     except subprocess.SubprocessError as e:
         print(f"❌ FFmpeg error: {_redact_line(cmd, str(e))}")
@@ -421,6 +447,12 @@ def download_stream(
     except Exception as e:
         print(f"❌ Unexpected error: {_redact_line(cmd, str(e))}")
         return False
+    finally:
+        if temp_path is not None and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
 
 
 def interactive_menu(links: List[Dict[str, str]]) -> int:
