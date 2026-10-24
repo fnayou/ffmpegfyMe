@@ -212,6 +212,20 @@ class DownloadStreamRunnerErrorRedactionTests(unittest.TestCase):
         self.assertNotIn("cookie-secret-456", output)
 
 
+class DownloadStreamSetupErrorRedactionTests(unittest.TestCase):
+    def test_download_stream_setup_error_redacts_url_and_returns_false(self) -> None:
+        buffer = io.StringIO()
+        with mock.patch("pathlib.Path.mkdir", side_effect=OSError(f"cannot create {SIGNED_URL_SENTINEL}")):
+            with redirect_stdout(buffer):
+                result = ffmpegfyMe.download_stream(SIGNED_URL_SENTINEL, Path("out") / "video1.mp4")
+
+        self.assertFalse(result)
+        output = buffer.getvalue()
+        self.assertNotIn(SIGNED_URL_SENTINEL, output)
+        self.assertNotIn("token=abc", output)
+        self.assertNotIn("sig=supersecretvalue", output)
+
+
 class DownloadSummaryRedactionTests(unittest.TestCase):
     def test_download_summary_excludes_source_urls(self) -> None:
         downloads: List[Dict[str, str]] = [
