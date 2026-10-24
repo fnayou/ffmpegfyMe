@@ -330,6 +330,38 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [2.0, 6.0])
         self.assertEqual(uniform.call_count, 2)
 
+    def test_max_retries_above_cap_still_limits_to_two_attempts(self) -> None:
+        item = _make_item()
+        fake = FakeFFmpegRunner(exit_code=1)
+        with mock.patch("random.uniform", side_effect=[2.0, 6.0]) as uniform:
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                self.assertFalse(
+                    ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake, max_retries=50)
+                )
+        self.assertEqual(len(fake.commands), 3)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2.0, 6.0])
+        self.assertEqual(uniform.call_count, 2)
+
+    def test_max_retries_zero_does_not_retry_on_failure(self) -> None:
+        item = _make_item()
+        fake = FakeFFmpegRunner(exit_code=1)
+        with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+            self.assertFalse(
+                ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake, max_retries=0)
+            )
+        self.assertEqual(len(fake.commands), 1)
+        sleep.assert_not_called()
+
+    def test_cancel_keyboardinterrupt_propagates_without_retry_sleep(self) -> None:
+        item = _make_item()
+        fake = FakeFFmpegRunner(cancel=True)
+        with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+            with self.assertRaises(KeyboardInterrupt):
+                ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake)
+        self.assertEqual(len(fake.commands), 1)
+        sleep.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
