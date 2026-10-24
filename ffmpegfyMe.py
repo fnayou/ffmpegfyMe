@@ -87,6 +87,29 @@ def item_is_complete(item_state: Optional[Dict[str, Any]], output_path: Path) ->
     )
 
 
+def process_download_item(item: Dict[str, Any], output_path: Path, state_file: Path, item_states: Dict[str, Dict[str, Any]], runner: Optional[Callable] = None, allow_overwrite: bool = False) -> bool:
+    key = item_state_key(item)
+
+    if item_is_complete(item_states.get(key), output_path):
+        return True
+
+    if output_path.exists() and not allow_overwrite:
+        item_states[key] = {"status": "failed", "output": output_path.name}
+        save_item_state(state_file, item_states)
+        print(f"❌ Conflict: output file already exists: {output_path.name}")
+        return False
+
+    item_states[key] = {"status": "pending", "output": output_path.name}
+    save_item_state(state_file, item_states)
+
+    success = download_with_retry(item, output_path, runner=runner, allow_overwrite=allow_overwrite)
+
+    item_states[key] = {"status": "succeeded" if success else "failed", "output": output_path.name}
+    save_item_state(state_file, item_states)
+
+    return success
+
+
 def load_item_state(state_file: Path) -> Dict[str, Dict[str, Any]]:
     """Load per-item state mapping; missing or corrupt state yields empty mapping."""
     try:
@@ -503,7 +526,7 @@ def display_download_summary(downloads: List[Dict[str, str]], start_index: int) 
     print()
 
 
-def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None) -> bool:
+def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None, allow_overwrite: bool = False) -> bool:
     try:
         headers, cookies = resolve_request_auth(item)
     except ValueError:
@@ -515,7 +538,7 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
             print(f"⚠️ Retry attempt {attempt}/{max_retries}...")
             time.sleep(2)
 
-        if download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies):
+        if download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite):
             return True
 
     return False
