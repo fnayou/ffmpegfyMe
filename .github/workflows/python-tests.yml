@@ -17,3 +17,11 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m unittest discover -v
+
+  container_smoke:
+    name: Container smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker compose build ffmpegfy-me
+      - run: docker compose run --rm --no-deps --entrypoint /bin/sh ffmpegfy-me -c /app/docker/smoke-check.sh
