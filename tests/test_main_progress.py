@@ -133,6 +133,38 @@ class MainProgressTests(unittest.TestCase):
             {"status": "succeeded", "output": "video-a.mp4"},
         )
 
+    def test_failure_is_reported_after_batch_and_later_items_continue(self) -> None:
+        item_a = {"url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}
+        item_b = {"url": "https://cdn.example.com/b.m3u8", "output": "video-b.mp4"}
+        self._write_manifest([item_a, item_b])
+
+        class FailFirstItemRunner:
+            def __init__(self) -> None:
+                self.commands = []
+
+            def __call__(self, command, on_output=None) -> int:
+                self.commands.append(list(command))
+                url = command[command.index("-i") + 1]
+                if url == item_a["url"]:
+                    return 1
+                Path(command[-1]).write_bytes(b"new-content")
+                return 0
+
+        runner = FailFirstItemRunner()
+        output = io.StringIO()
+        with mock.patch("builtins.input", side_effect=["y", "2"]):
+            with mock.patch("ffmpegfyMe.time.sleep"):
+                with redirect_stdout(output):
+                    ffmpegfyMe.main(runner=runner)
+
+        attempted_urls = [command[command.index("-i") + 1] for command in runner.commands]
+        self.assertEqual(attempted_urls.count(item_a["url"]), 3)
+        self.assertIn(item_b["url"], attempted_urls)
+        report = output.getvalue()
+        self.assertIn("❌ Failed downloads:", report)
+        self.assertIn("video-a.mp4", report)
+        self.assertLess(report.index("❌ Failed downloads:"), report.index("✅ All done"))
+
 
 if __name__ == "__main__":
     unittest.main()
