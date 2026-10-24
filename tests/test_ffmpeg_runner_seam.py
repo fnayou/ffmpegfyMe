@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
@@ -32,6 +33,8 @@ class FakeFFmpegRunner:
         if self.cancel:
             self.cancelled = True
             raise KeyboardInterrupt()
+        if self.exit_code == 0 and Path(command[-1]).suffix.lower() in (".mp4", ".mkv"):
+            Path(command[-1]).write_bytes(b"fake-output")
         if on_output is not None:
             for line in self.progress_lines:
                 on_output(line)
@@ -84,7 +87,9 @@ class TestDownloadStreamIntegration(unittest.TestCase):
 
     def setUp(self) -> None:
         self.url = "https://cdn.example.com/video1.m3u8"
-        self.output_path = Path("out") / "video1.mp4"
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp_dir.cleanup)
+        self.output_path = Path(self._temp_dir.name) / "video1.mp4"
 
     def test_success_returns_true_for_zero_exit_code(self) -> None:
         fake = FakeFFmpegRunner(exit_code=0)
@@ -106,7 +111,9 @@ class TestDownloadStreamIntegration(unittest.TestCase):
         self.assertEqual(cmd[3], "http,https,tcp,tls,crypto")
         self.assertEqual(cmd[4], "-i")
         self.assertEqual(cmd[5], self.url)
-        self.assertEqual(cmd[-1], str(self.output_path))
+        self.assertNotEqual(Path(cmd[-1]), self.output_path)
+        self.assertEqual(Path(cmd[-1]).parent, self.output_path.parent)
+        self.assertEqual(Path(cmd[-1]).suffix, self.output_path.suffix)
 
     def test_progress_lines_flow_through_callback(self) -> None:
         fake = FakeFFmpegRunner(
@@ -132,7 +139,9 @@ class TestDownloadStreamCommandConstruction(unittest.TestCase):
 
     def setUp(self) -> None:
         self.url = "https://cdn.example.com/video1.m3u8"
-        self.output_path = Path("out") / "video1.mp4"
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp_dir.cleanup)
+        self.output_path = Path(self._temp_dir.name) / "video1.mp4"
 
     def _build_command(self, headers: Optional[Dict[str, str]] = None, cookies: Optional[str] = None) -> List[str]:
         fake = FakeFFmpegRunner(exit_code=0)
@@ -155,7 +164,9 @@ class TestDownloadStreamCommandConstruction(unittest.TestCase):
         self.assertEqual(cmd[3], self.ALLOWED_PROTOCOLS)
         self.assertEqual(cmd[4], "-i")
         self.assertEqual(cmd[5], self.url)
-        self.assertEqual(cmd[-1], str(self.output_path))
+        self.assertNotEqual(Path(cmd[-1]), self.output_path)
+        self.assertEqual(Path(cmd[-1]).parent, self.output_path.parent)
+        self.assertEqual(Path(cmd[-1]).suffix, self.output_path.suffix)
 
     def test_no_auth_command_omits_auth_options(self) -> None:
         cmd = self._build_command()
@@ -200,7 +211,7 @@ class TestDownloadStreamCommandConstruction(unittest.TestCase):
     def test_command_stream_copies_without_bsf_map_or_data_and_keeps_extension(self) -> None:
         for output_name in ("video1.mp4", "video1.mkv"):
             with self.subTest(output_name=output_name):
-                output_path = Path("out") / output_name
+                output_path = Path(self._temp_dir.name) / output_name
                 fake = FakeFFmpegRunner(exit_code=0)
                 self.assertTrue(ffmpegfyMe.download_stream(self.url, output_path, runner=fake))
                 self.assertEqual(len(fake.commands), 1)
@@ -211,7 +222,9 @@ class TestDownloadStreamCommandConstruction(unittest.TestCase):
                 self.assertNotIn("-map", cmd)
                 self.assertNotIn("-bsf:a", cmd)
                 self.assertNotIn("aac_adtstoasc", cmd)
-                self.assertEqual(cmd[-1], str(output_path))
+                self.assertNotEqual(Path(cmd[-1]), output_path)
+                self.assertEqual(Path(cmd[-1]).parent, output_path.parent)
+                self.assertEqual(Path(cmd[-1]).suffix, output_path.suffix)
 
 
 class TestRealFFmpegAdapter(unittest.TestCase):
@@ -246,7 +259,9 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
 
     def setUp(self) -> None:
         self.url = "https://cdn.example.com/video1.m3u8"
-        self.output_path = Path("out") / "video1.mp4"
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp_dir.cleanup)
+        self.output_path = Path(self._temp_dir.name) / "video1.mp4"
 
     def _auth_item(self, header_value: str = "${API_TOKEN}", cookies: Optional[str] = None) -> Dict[str, str]:
         item: Dict[str, str] = {
