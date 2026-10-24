@@ -603,9 +603,8 @@ def main(runner: Optional[Callable] = None) -> None:
         safe_filename = validate_output_filename(item['output'])
         output_path = output_dir / safe_filename
 
-        if output_path.exists():
-            print(f"⏩ Skipped (already exists): {output_path.name}")
-            save_state(state_file, i + 1)
+        if item_is_complete(item_states.get(item_state_key(item)), output_path):
+            print(f"⏩ Skipped (already completed): {output_path.name}")
             continue
 
         print(f"\n🎧 Downloading [{i+1}/{len(downloads)}]: {safe_filename}")
@@ -620,11 +619,22 @@ def main(runner: Optional[Callable] = None) -> None:
                 print("⏭️  Skipped.")
                 continue
 
-        success = download_with_retry(item, output_path, runner=runner)
+        allow_overwrite = False
+        if output_path.exists() and mode == '1':
+            overwrite_answer = input("Overwrite existing output? (y/N): ").strip().lower()
+            allow_overwrite = overwrite_answer == 'y'
+
+        success = process_download_item(
+            item,
+            output_path,
+            state_file,
+            item_states,
+            runner=runner,
+            allow_overwrite=allow_overwrite,
+        )
 
         if success:
             print(f"✅ Successfully downloaded: {safe_filename}")
-            save_state(state_file, i + 1)
         else:
             print(f"❌ Failed to download: {safe_filename} after retries")
             if mode == '1':
@@ -634,7 +644,6 @@ def main(runner: Optional[Callable] = None) -> None:
                     break
             else:
                 print("⏭️  Skipping and continuing in auto mode.")
-                save_state(state_file, i + 1)
 
     print("\n✅ All done with ffmpegfyMe!")
 
