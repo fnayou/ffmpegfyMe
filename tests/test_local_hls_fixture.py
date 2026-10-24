@@ -1,5 +1,6 @@
 import io
 import os
+import tempfile
 import threading
 import unittest
 from contextlib import redirect_stdout
@@ -92,6 +93,8 @@ class LocalHLSFakeFFmpegRunner:
     def __call__(self, command: List[str], on_output=None) -> int:
         self.commands.append(list(command))
         result = self._fetch_authenticated_hls(command)
+        if result == 0:
+            Path(command[-1]).write_bytes(b"fixture-output")
         if on_output is not None:
             cmd = list(command)
             headers = cmd[cmd.index("-headers") + 1]
@@ -163,7 +166,9 @@ class LocalHLSFixtureTests(unittest.TestCase):
         self.addCleanup(self._stop_server)
         host, port = self.server.server_address[0], self.server.server_address[1]
         self.base_url = f"http://{host}:{port}"
-        self.output_path = Path("out") / "hls_fixture_video.mp4"
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp_dir.cleanup)
+        self.output_path = Path(self._tmp_dir.name) / "hls_fixture_video.mp4"
 
     def _stop_server(self) -> None:
         self.server.shutdown()
