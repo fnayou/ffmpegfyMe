@@ -305,6 +305,9 @@ def run_ffmpeg(
                 if on_output is not None:
                     on_output(safe_line)
                 print(f"\r{safe_line.strip()}", end='')
+            elif line:
+                safe_line = _redact_line(command, line)
+                print(safe_line, end="")
         print()
 
         return process.returncode

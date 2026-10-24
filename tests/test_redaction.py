@@ -127,6 +127,35 @@ class RunFFmpegProgressRedactionTests(unittest.TestCase):
         self.assertNotIn(self.SEGMENT_SENTINEL, stdout_output)
         self.assertNotIn("https://", stdout_output)
 
+    def test_run_ffmpeg_diagnostic_lines_redact_secrets_and_stay_visible(self) -> None:
+        command = [
+            "ffmpeg", "-y",
+            "-protocol_whitelist", "http,https,tcp,tls,crypto",
+            "-i", self.URL_SENTINEL,
+            "-headers", self.HEADER_SENTINEL,
+            "-cookies", self.COOKIE_SENTINEL,
+            "-c", "copy", "out/video1.mp4",
+        ]
+        diagnostic_line = (
+            f"HTTP error 403: unable to download {self.URL_SENTINEL} "
+            f"headers={self.HEADER_SENTINEL} cookies={self.COOKIE_SENTINEL}"
+        )
+        buffer = io.StringIO()
+        with mock.patch("ffmpegfyMe.subprocess.Popen") as popen:
+            process = popen.return_value
+            process.poll.side_effect = [None, 0]
+            process.stdout.readline.return_value = diagnostic_line + "\n"
+            process.returncode = 0
+            with redirect_stdout(buffer):
+                exit_code = ffmpegfyMe.run_ffmpeg(command)
+        self.assertEqual(exit_code, 0)
+        stdout_output = buffer.getvalue()
+        self.assertIn("HTTP error 403", stdout_output)
+        self.assertNotIn(self.URL_SENTINEL, stdout_output)
+        self.assertNotIn(self.HEADER_SENTINEL, stdout_output)
+        self.assertNotIn(self.COOKIE_SENTINEL, stdout_output)
+        self.assertNotIn("https://", stdout_output)
+
 
 class DownloadStreamProgressRedactionTests(unittest.TestCase):
     URL_SENTINEL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
