@@ -1,4 +1,4 @@
-import subprocess, json, sys, time, re, ipaddress, os, hashlib, tempfile, random
+import subprocess, json, sys, time, re, ipaddress, os, hashlib, tempfile, random, selectors, math
 from pathlib import Path
 from typing import Any, Callable, List, Dict, Optional, Tuple
 import urllib.parse
@@ -370,18 +370,96 @@ def _redact_line(command: List[str], line: str) -> str:
     return FFMPEG_REDACTED_URL_PATTERN.sub(REDACTED_PLACEHOLDER, safe_line)
 
 
+class FFmpegInactivityTimeout(Exception):
+    """Raised when the ffmpeg subprocess produces no output within inactivity_timeout."""
+
+
+class FFmpegProcessStartError(Exception):
+    """Raised when the ffmpeg subprocess fails to start."""
+
+
+def _run_ffmpeg_with_selector(
+    process: "subprocess.Popen",
+    command: List[str],
+    on_output: Optional[Callable[[str], None]],
+    inactivity_timeout: float,
+) -> int:
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    start = time.monotonic()
+    buffer = b""
+    timed_out = False
+    try:
+        while True:
+            if process.poll() is not None:
+                break
+            remaining = inactivity_timeout - (time.monotonic() - start)
+            if remaining <= 0:
+                timed_out = True
+                break
+            if not selector.select(remaining):
+                timed_out = True
+                break
+            chunk = os.read(process.stdout.fileno(), 65536)
+            start = time.monotonic()
+            buffer += chunk
+            while b"\n" in buffer:
+                raw_line, buffer = buffer.split(b"\n", 1)
+                line = raw_line.decode("utf-8", errors="replace")
+                if line and ("frame=" in line or "size=" in line or "time=" in line):
+                    safe_line = _redact_line(command, line)
+                    if on_output is not None:
+                        on_output(safe_line)
+                    print(f"\r{safe_line.strip()}", end='')
+                elif line:
+                    safe_line = _redact_line(command, line)
+                    print(safe_line, end="")
+        if timed_out:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            raise FFmpegInactivityTimeout("FFmpeg inactivity timeout exceeded.")
+        return process.returncode
+    finally:
+        selector.close()
+        process.stdout.close()
+
+
+def _resolve_ffmpeg_inactivity_timeout(value: Optional[float]) -> float:
+    if value is None:
+        value = os.environ.get("FFMPEG_INACTIVITY_TIMEOUT", "60")
+    try:
+        timeout = float(value)
+    except (TypeError, ValueError):
+        raise ValueError("FFMPEG_INACTIVITY_TIMEOUT must be a positive number") from None
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("FFMPEG_INACTIVITY_TIMEOUT must be a positive number")
+    return timeout
+
+
 def run_ffmpeg(
     command: List[str],
     on_output: Optional[Callable[[str], None]] = None,
+    inactivity_timeout: Optional[float] = None,
 ) -> int:
+    inactivity_timeout = _resolve_ffmpeg_inactivity_timeout(inactivity_timeout)
     try:
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+        except OSError as e:
+            raise FFmpegProcessStartError("FFmpeg process failed to start.") from e
+
+        if isinstance(process.stdout.fileno(), int):
+            return _run_ffmpeg_with_selector(process, command, on_output, inactivity_timeout)
 
         while process.poll() is None:
             line = process.stdout.readline()
@@ -397,6 +475,10 @@ def run_ffmpeg(
 
         return process.returncode
 
+    except FFmpegInactivityTimeout:
+        raise
+    except FFmpegProcessStartError:
+        raise
     except subprocess.SubprocessError:
         print("❌ FFmpeg error occurred.")
         return 1
@@ -474,6 +556,8 @@ def download_stream(
 
         return False
 
+    except FFmpegProcessStartError:
+        raise
     except subprocess.SubprocessError as e:
         print(f"❌ FFmpeg error: {_redact_line(cmd, str(e))}")
         return False
@@ -542,7 +626,12 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
             elif attempt == 2:
                 time.sleep(random.uniform(5.0, 7.0))
 
-        if download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite):
+        try:
+            success = download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite)
+        except FFmpegProcessStartError:
+            print("❌ FFmpeg could not start. Download skipped.")
+            return False
+        if success:
             return True
 
     return False
@@ -602,6 +691,8 @@ def main(runner: Optional[Callable] = None) -> None:
             break
         print("❗ Invalid choice. Please enter 1 or 2.")
 
+    failed_downloads: List[str] = []
+
     for i in range(start_index, len(downloads)):
         item = downloads[i]
         safe_filename = validate_output_filename(item['output'])
@@ -640,6 +731,7 @@ def main(runner: Optional[Callable] = None) -> None:
         if success:
             print(f"✅ Successfully downloaded: {safe_filename}")
         else:
+            failed_downloads.append(safe_filename)
             print(f"❌ Failed to download: {safe_filename} after retries")
             if mode == '1':
                 retry = input("Continue with next download? (Y/n): ").strip().lower() or 'y'
@@ -648,6 +740,11 @@ def main(runner: Optional[Callable] = None) -> None:
                     break
             else:
                 print("⏭️  Skipping and continuing in auto mode.")
+
+    if failed_downloads:
+        print("\n❌ Failed downloads:")
+        for filename in failed_downloads:
+            print(f"   - {filename}")
 
     print("\n✅ All done with ffmpegfyMe!")
 

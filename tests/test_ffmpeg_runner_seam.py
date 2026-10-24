@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -361,6 +362,43 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
                 ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake)
         self.assertEqual(len(fake.commands), 1)
         sleep.assert_not_called()
+
+    def test_process_start_failure_is_not_retried(self) -> None:
+        item = _make_item()
+        with mock.patch("ffmpegfyMe.subprocess.Popen", side_effect=FileNotFoundError("missing")) as popen:
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                result = ffmpegfyMe.download_with_retry(item, self.output_path, max_retries=2)
+        self.assertFalse(result)
+        self.assertEqual(popen.call_count, 1)
+        sleep.assert_not_called()
+
+
+class TestRunFFmpegInactivityTimeout(unittest.TestCase):
+    def test_raises_ffmpeg_inactivity_timeout(self) -> None:
+        with self.assertRaises(ffmpegfyMe.FFmpegInactivityTimeout):
+            ffmpegfyMe.run_ffmpeg([sys.executable, "-c", "import time; time.sleep(2)"], inactivity_timeout=0.05)
+
+    def test_environment_timeout_causes_timeout(self) -> None:
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "0.05"}):
+            with self.assertRaises(ffmpegfyMe.FFmpegInactivityTimeout):
+                ffmpegfyMe.run_ffmpeg([sys.executable, "-c", "import time; time.sleep(2)"])
+
+    def test_invalid_environment_timeout_raises_before_process_start(self) -> None:
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "nan"}):
+            with mock.patch("ffmpegfyMe.subprocess.Popen") as popen:
+                with self.assertRaises(ValueError):
+                    ffmpegfyMe.run_ffmpeg(["ffmpeg"])
+        popen.assert_not_called()
+
+    def test_output_activity_resets_timeout_without_total_cap(self) -> None:
+        child = "import time; print(\"frame= 1\", flush=True); time.sleep(0.04); print(\"frame= 1\", flush=True); time.sleep(0.04); print(\"frame= 1\", flush=True); time.sleep(0.04)"
+        started = ffmpegfyMe.time.monotonic()
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "0.01"}):
+            result = ffmpegfyMe.run_ffmpeg(
+                [sys.executable, "-u", "-c", child], inactivity_timeout=0.06
+            )
+        self.assertEqual(result, 0)
+        self.assertGreater(ffmpegfyMe.time.monotonic() - started, 0.06)
 
 
 if __name__ == "__main__":
