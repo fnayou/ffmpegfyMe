@@ -104,6 +104,8 @@ def _is_valid_output_filename(filename: str) -> bool:
         return False
     if not filename.strip():
         return False
+    if os.path.splitext(filename)[1].lower() not in (".mp4", ".mkv"):
+        return False
     return True
 
 

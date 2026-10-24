@@ -94,6 +94,16 @@ class LoadDownloadsValidationTests(unittest.TestCase):
         downloads = self.load([{"url": VALID_URL, "output": "my video1.mp4"}])
         self.assertEqual(downloads[0]["output"], "my video1.mp4")
 
+    def test_accepts_mkv_output_and_rejects_unsupported_or_extensionless(self) -> None:
+        downloads = self.load([{"url": VALID_URL, "output": "video1.mkv"}])
+        self.assertEqual(downloads[0]["output"], "video1.mkv")
+        downloads = self.load([{"url": VALID_URL, "output": "video1.MKV"}])
+        self.assertEqual(downloads[0]["output"], "video1.MKV")
+        self.assert_load_rejected([{"url": VALID_URL, "output": "video1.mov"}])
+        self.assert_load_rejected([{"url": VALID_URL, "output": "video1.MOV"}])
+        self.assert_load_rejected([{"url": VALID_URL, "output": "video1.mp3"}])
+        self.assert_load_rejected([{"url": VALID_URL, "output": "video1"}])
+
     def test_rejects_duplicate_stable_ids(self) -> None:
         self.assert_load_rejected([
             {"url": VALID_URL, "output": "video1.mp4", "id": "video-1"},
