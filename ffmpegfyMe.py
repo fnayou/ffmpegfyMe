@@ -77,6 +77,16 @@ def item_state_key(item: Dict[str, Any]) -> str:
     return f"sha256:{digest}"
 
 
+def item_is_complete(item_state: Optional[Dict[str, Any]], output_path: Path) -> bool:
+    """True only when item succeeded, output filename matches, and file exists."""
+    return (
+        isinstance(item_state, dict)
+        and item_state.get("status") == "succeeded"
+        and item_state.get("output") == output_path.name
+        and output_path.is_file()
+    )
+
+
 def load_item_state(state_file: Path) -> Dict[str, Dict[str, Any]]:
     """Load per-item state mapping; missing or corrupt state yields empty mapping."""
     try:
