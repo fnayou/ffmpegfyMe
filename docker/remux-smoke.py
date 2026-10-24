@@ -45,10 +45,13 @@ def main() -> None:
             "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=1",
             "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=1",
             "-map", "0:v:0", "-map", "1:v:0", "-map", "2:a:0", "-map", "3:a:0",
-            "-c:v", "mpeg4", "-q:v", "8", "-c:a", "aac", "-t", "1", str(source),
+            "-c:v", "mpeg4", "-q:v", "8", "-c:a", "aac", "-t", "1", "-disposition:v:0", "0", "-disposition:v:1", "0", "-disposition:a:0", "0", "-disposition:a:1", "0", str(source),
         ])
         source_info = probe(source)
         source_streams = source_info["streams"]
+        for stream in source_streams:
+            if stream.get("disposition", {}).get("default"):
+                raise RuntimeError("synthetic source unexpectedly has a default video/audio disposition")
         source_video = max((stream for stream in source_streams if stream["codec_type"] == "video"), key=lambda stream: stream["width"])
         source_audio = max((stream for stream in source_streams if stream["codec_type"] == "audio"), key=lambda stream: stream["channels"])
 
