@@ -89,7 +89,13 @@ class LocalHLSFakeFFmpegRunner:
 
     def __call__(self, command: List[str], on_output=None) -> int:
         self.commands.append(list(command))
-        return self._fetch_authenticated_hls(command)
+        result = self._fetch_authenticated_hls(command)
+        if on_output is not None:
+            cmd = list(command)
+            headers = cmd[cmd.index("-headers") + 1]
+            cookies = cmd[cmd.index("-cookies") + 1]
+            on_output(f"frame=2 playlist={self.playlist_url} segment={self.segment_url} headers={headers} cookies={cookies}")
+        return result
 
     def _fetch_authenticated_hls(self, command: List[str]) -> int:
         cmd = list(command)
