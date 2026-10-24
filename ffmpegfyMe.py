@@ -1,4 +1,4 @@
-import subprocess, json, sys, time, re, ipaddress, os
+import subprocess, json, sys, time, re, ipaddress, os, hashlib, tempfile
 from pathlib import Path
 from typing import Any, Callable, List, Dict, Optional, Tuple
 import urllib.parse
@@ -59,6 +59,56 @@ def load_state(state_file: Path) -> int:
 def save_state(state_file: Path, index: int) -> None:
     with open(state_file, 'w') as f:
         json.dump({"last_index": index}, f)
+
+
+ITEM_STATE_VERSION = 1
+ITEM_STATUSES = ("pending", "succeeded", "failed")
+
+
+def item_state_key(item: Dict[str, Any]) -> str:
+    """Resume key: stable id plus output when id supplied, else SHA-256 of full URL plus output."""
+    stable_id = item.get("id")
+    output = item.get("output") or ""
+    if isinstance(stable_id, str) and stable_id:
+        return f"stable:{stable_id}:{output}"
+    url = item.get("url") or ""
+    digest_source = json.dumps([url, output], separators=(",", ":"), sort_keys=True)
+    digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def load_item_state(state_file: Path) -> Dict[str, Dict[str, Any]]:
+    """Load per-item state mapping; missing or corrupt state yields empty mapping."""
+    try:
+        with open(state_file) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    items = data.get("items")
+    if not isinstance(items, dict):
+        return {}
+    return {str(key): entry for key, entry in items.items() if isinstance(entry, dict)}
+
+
+def save_item_state(state_file: Path, items: Dict[str, Dict[str, Any]]) -> None:
+    """Atomically persist per-item state via sibling temp file and os.replace."""
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(state_file.parent), prefix=f".{state_file.name}.", suffix=".tmp")
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump({"version": ITEM_STATE_VERSION, "items": items}, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, state_file)
+    except BaseException:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _is_valid_http_url(url: str) -> bool:
