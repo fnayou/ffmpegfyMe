@@ -351,7 +351,8 @@ def download_stream(
         cmd += [
             '-i', url,
             '-c', 'copy',
-            '-bsf:a', 'aac_adtstoasc',
+            '-sn',
+            '-dn',
             '-stats',
             '-loglevel', 'warning',
             str(output_path)

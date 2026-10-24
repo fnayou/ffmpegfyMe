@@ -197,6 +197,22 @@ class TestDownloadStreamCommandConstruction(unittest.TestCase):
         self.assertNotIn("ftp", protocols)
         self.assertNotIn("data", protocols)
 
+    def test_command_stream_copies_without_bsf_map_or_data_and_keeps_extension(self) -> None:
+        for output_name in ("video1.mp4", "video1.mkv"):
+            with self.subTest(output_name=output_name):
+                output_path = Path("out") / output_name
+                fake = FakeFFmpegRunner(exit_code=0)
+                self.assertTrue(ffmpegfyMe.download_stream(self.url, output_path, runner=fake))
+                self.assertEqual(len(fake.commands), 1)
+                cmd = fake.commands[0]
+                self.assertEqual(cmd[cmd.index("-c") + 1], "copy")
+                self.assertIn("-sn", cmd)
+                self.assertIn("-dn", cmd)
+                self.assertNotIn("-map", cmd)
+                self.assertNotIn("-bsf:a", cmd)
+                self.assertNotIn("aac_adtstoasc", cmd)
+                self.assertEqual(cmd[-1], str(output_path))
+
 
 class TestRealFFmpegAdapter(unittest.TestCase):
     def test_returns_exit_code_from_subprocess(self) -> None:
