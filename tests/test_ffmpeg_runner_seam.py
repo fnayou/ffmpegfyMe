@@ -320,6 +320,16 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
         self.assertNotIn("-headers", cmd)
         self.assertNotIn("-cookies", cmd)
 
+    def test_retry_backoff_uses_jittered_sleeps(self) -> None:
+        item = _make_item()
+        fake = FakeFFmpegRunner(exit_code=1)
+        with mock.patch("random.uniform", side_effect=[2.0, 6.0]) as uniform:
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                self.assertFalse(ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake))
+        self.assertEqual(len(fake.commands), 3)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2.0, 6.0])
+        self.assertEqual(uniform.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
