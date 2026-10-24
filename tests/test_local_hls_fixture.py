@@ -1,6 +1,8 @@
+import io
 import os
 import threading
 import unittest
+from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -180,7 +182,9 @@ class LocalHLSFixtureTests(unittest.TestCase):
         """Check app-generated auth config against local fixture; no real FFmpeg."""
         fake = LocalHLSFakeFFmpegRunner()
         with mock.patch.dict(os.environ, {"API_TOKEN": FAKE_TOKEN, "SESSION_ID": FAKE_COOKIE}):
-            success = ffmpegfyMe.download_with_retry(self._auth_item(), self.output_path, runner=fake)
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                success = ffmpegfyMe.download_with_retry(self._auth_item(), self.output_path, runner=fake)
         self.assertTrue(success)
         self.assertEqual(len(fake.commands), 1)
         cmd = fake.commands[0]
@@ -194,3 +198,8 @@ class LocalHLSFixtureTests(unittest.TestCase):
             self.server.request_log,
             [(PLAYLIST_PATH, True), (SEGMENT_PATH, True)],
         )
+        output = buffer.getvalue()
+        self.assertIn("frame=2", output)
+        self.assertNotIn(self.base_url, output)
+        self.assertNotIn(FAKE_TOKEN, output)
+        self.assertNotIn(FAKE_COOKIE, output)
