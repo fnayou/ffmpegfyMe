@@ -332,11 +332,13 @@ def download_stream(
         print("❌ Invalid URL format.")
         return False
 
+    cmd: List[str] = []
+
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         print(f"⏳ Starting download to {output_path.name}...")
 
-        cmd: List[str] = [
+        cmd = [
             'ffmpeg', '-y',
             '-protocol_whitelist', 'http,https,tcp,tls,crypto',
         ]
