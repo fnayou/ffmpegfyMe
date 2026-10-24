@@ -1,5 +1,6 @@
 import io
 import subprocess
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -10,6 +11,13 @@ import ffmpegfyMe
 
 
 SIGNED_URL_SENTINEL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
+
+
+class TemporaryDownloadOutputTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp_dir.cleanup)
+        self.output_path = Path(self._tmp_dir.name) / "video1.mp4"
 
 
 class InteractiveMenuRedactionTests(unittest.TestCase):
@@ -157,7 +165,7 @@ class RunFFmpegProgressRedactionTests(unittest.TestCase):
         self.assertNotIn("https://", stdout_output)
 
 
-class DownloadStreamProgressRedactionTests(unittest.TestCase):
+class DownloadStreamProgressRedactionTests(TemporaryDownloadOutputTest):
     URL_SENTINEL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
 
     def test_download_stream_runner_progress_output_redacts_secrets(self) -> None:
@@ -170,7 +178,7 @@ class DownloadStreamProgressRedactionTests(unittest.TestCase):
         with redirect_stdout(buffer):
             result = ffmpegfyMe.download_stream(
                 self.URL_SENTINEL,
-                Path("out") / "video1.mp4",
+                self.output_path,
                 runner=fake_runner,
             )
 
@@ -181,7 +189,7 @@ class DownloadStreamProgressRedactionTests(unittest.TestCase):
         self.assertNotIn("https://", stdout_output)
 
 
-class DownloadStreamRunnerErrorRedactionTests(unittest.TestCase):
+class DownloadStreamRunnerErrorRedactionTests(TemporaryDownloadOutputTest):
     SIGNED_URL = "https://cdn.example.com/private/video.m3u8?token=abc&sig=supersecretvalue"
     AUTH_HEADER_VALUE = "Authorization: Bearer header-secret-123"
     COOKIE_VALUE = "session=cookie-secret-456"
@@ -197,7 +205,7 @@ class DownloadStreamRunnerErrorRedactionTests(unittest.TestCase):
         with redirect_stdout(buffer):
             result = ffmpegfyMe.download_stream(
                 self.SIGNED_URL,
-                Path("out") / "video1.mp4",
+                self.output_path,
                 runner=failing_runner,
                 headers={"Authorization": "Bearer header-secret-123"},
                 cookies="session=cookie-secret-456",
@@ -212,12 +220,12 @@ class DownloadStreamRunnerErrorRedactionTests(unittest.TestCase):
         self.assertNotIn("cookie-secret-456", output)
 
 
-class DownloadStreamSetupErrorRedactionTests(unittest.TestCase):
+class DownloadStreamSetupErrorRedactionTests(TemporaryDownloadOutputTest):
     def test_download_stream_setup_error_redacts_url_and_returns_false(self) -> None:
         buffer = io.StringIO()
         with mock.patch("pathlib.Path.mkdir", side_effect=OSError(f"cannot create {SIGNED_URL_SENTINEL}")):
             with redirect_stdout(buffer):
-                result = ffmpegfyMe.download_stream(SIGNED_URL_SENTINEL, Path("out") / "video1.mp4")
+                result = ffmpegfyMe.download_stream(SIGNED_URL_SENTINEL, self.output_path)
 
         self.assertFalse(result)
         output = buffer.getvalue()
