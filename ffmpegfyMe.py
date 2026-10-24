@@ -1,4 +1,4 @@
-import subprocess, json, sys, time, re, ipaddress, os, hashlib, tempfile
+import subprocess, json, sys, time, re, ipaddress, os, hashlib, tempfile, random
 from pathlib import Path
 from typing import Any, Callable, List, Dict, Optional, Tuple
 import urllib.parse
@@ -533,10 +533,14 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
         print("❌ Authentication configuration error. Download skipped.")
         return False
 
-    for attempt in range(max_retries + 1):
+    retries = max(0, min(max_retries, 2))
+    for attempt in range(retries + 1):
         if attempt > 0:
-            print(f"⚠️ Retry attempt {attempt}/{max_retries}...")
-            time.sleep(2)
+            print(f"⚠️ Retry attempt {attempt}/{retries}...")
+            if attempt == 1:
+                time.sleep(random.uniform(1.5, 2.5))
+            elif attempt == 2:
+                time.sleep(random.uniform(5.0, 7.0))
 
         if download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite):
             return True
