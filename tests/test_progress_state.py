@@ -68,6 +68,63 @@ class ItemStateStatusTests(unittest.TestCase):
         self.assertEqual(set(ffmpegfyMe.ITEM_STATUSES), {"pending", "succeeded", "failed"})
 
 
+class ItemIsCompleteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp_dir.cleanup)
+        self.output_dir = Path(self._tmp_dir.name)
+        self.output_path = self.output_dir / "video1.mp4"
+
+    def test_true_when_succeeded_and_file_exists(self) -> None:
+        self.output_path.write_bytes(b"data")
+        self.assertTrue(
+            ffmpegfyMe.item_is_complete(
+                {"status": "succeeded", "output": "video1.mp4"},
+                self.output_path,
+            )
+        )
+
+    def test_false_when_file_missing(self) -> None:
+        self.assertFalse(
+            ffmpegfyMe.item_is_complete(
+                {"status": "succeeded", "output": "video1.mp4"},
+                self.output_path,
+            )
+        )
+
+    def test_false_when_status_failed(self) -> None:
+        self.output_path.write_bytes(b"data")
+        self.assertFalse(
+            ffmpegfyMe.item_is_complete(
+                {"status": "failed", "output": "video1.mp4"},
+                self.output_path,
+            )
+        )
+
+    def test_false_when_status_pending(self) -> None:
+        self.output_path.write_bytes(b"data")
+        self.assertFalse(
+            ffmpegfyMe.item_is_complete(
+                {"status": "pending", "output": "video1.mp4"},
+                self.output_path,
+            )
+        )
+
+    def test_false_when_output_filename_mismatches(self) -> None:
+        self.output_path.write_bytes(b"data")
+        self.assertFalse(
+            ffmpegfyMe.item_is_complete(
+                {"status": "succeeded", "output": "other.mp4"},
+                self.output_path,
+            )
+        )
+
+    def test_false_when_state_is_none(self) -> None:
+        self.assertFalse(
+            ffmpegfyMe.item_is_complete(None, self.output_path)
+        )
+
+
 class LoadItemStateTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp_dir = tempfile.TemporaryDirectory()
