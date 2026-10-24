@@ -73,7 +73,7 @@ def main() -> None:
                 if types != {"video", "audio"} or len(streams) != 2:
                     raise RuntimeError(f"{extension} output has unexpected streams: {types}")
                 if video[0]["width"] != source_video["width"] or video[0]["codec_name"] != source_video["codec_name"]:
-                    raise RuntimeError(f"{extension} output did not copy the best video stream")
+                    raise RuntimeError(f"{extension} output did not copy the best video stream: expected video width {source_video['width']} codec {source_video['codec_name']}, actual output video width {video[0]['width']} codec {video[0]['codec_name']}")
                 if audio[0]["channels"] != source_audio["channels"] or audio[0]["codec_name"] != source_audio["codec_name"]:
                     raise RuntimeError(f"{extension} output did not copy the best audio stream")
                 print(f"PASS: {extension} container, best video/audio streams, stream copy")
