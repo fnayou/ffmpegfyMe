@@ -27,4 +27,6 @@ for dir in /app/in /app/out /app/progress; do
     fi
 done
 
+python3 /app/docker/remux-smoke.py
+
 echo "SMOKE CHECK PASSED"

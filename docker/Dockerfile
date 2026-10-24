@@ -21,6 +21,7 @@ COPY ffmpegfyMe.py ./
 
 # Copy container smoke check
 COPY docker/smoke-check.sh /app/docker/smoke-check.sh
+COPY docker/remux-smoke.py /app/docker/remux-smoke.py
 RUN chmod +x /app/docker/smoke-check.sh
 
 # Default command (overridden by docker-compose)
