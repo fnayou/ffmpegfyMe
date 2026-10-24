@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -75,6 +77,33 @@ def main() -> None:
                 if audio[0]["channels"] != source_audio["channels"] or audio[0]["codec_name"] != source_audio["codec_name"]:
                     raise RuntimeError(f"{extension} output did not copy the best audio stream")
                 print(f"PASS: {extension} container, best video/audio streams, stream copy")
+
+            source_ffv1 = root / "source_ffv1.mkv"
+            run_checked([
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=10:duration=1",
+                "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=1",
+                "-c:v", "ffv1", "-c:a", "aac", "-t", "1", str(source_ffv1),
+            ])
+
+            ffv1_url = f"http://127.0.0.1:{server.server_port}/source_ffv1.mkv"
+            ffv1_output = root / "output_ffv1.mp4"
+            ffv1_buffer = io.StringIO()
+            with contextlib.redirect_stdout(ffv1_buffer):
+                ffv1_remuxed = ffmpegfyMe.download_stream(ffv1_url, ffv1_output)
+            ffv1_diagnostic = ffv1_buffer.getvalue()
+            if ffv1_remuxed:
+                raise RuntimeError("FFmpeg unexpectedly remuxed FFV1 source to MP4")
+            ffv1_lowered = ffv1_diagnostic.lower()
+            ffv1_markers = (
+                "could not find tag for codec ffv1",
+                "codec not currently supported in container",
+            )
+            if not any(marker in ffv1_lowered for marker in ffv1_markers):
+                raise RuntimeError(
+                    f"FFmpeg diagnostic did not identify FFV1 as unsupported by MP4 container: {ffv1_diagnostic}"
+                )
+            print("PASS: FFV1 source reported as unsupported by MP4 container")
         finally:
             server.shutdown()
             server.server_close()
