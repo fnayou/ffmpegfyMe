@@ -567,25 +567,24 @@ def main(runner: Optional[Callable] = None) -> None:
         sys.exit(0)
 
     state_file = PROGRESS_DIR / f"{batch_name}_state.json"
+    item_states = load_item_state(state_file)
 
     if state_file.exists():
         print(f"\n📄 Found saved progress for this batch: {state_file}")
         reset = input("🔁 Do you want to reset progress and start from the beginning? (y/N): ").strip().lower()
         if reset == 'y':
-            save_state(state_file, 0)
+            item_states = {}
+            save_item_state(state_file, item_states)
             print("✅ Progress reset to the beginning.")
 
     print(f"\n📝 Progress file: {state_file}")
     print(f"💾 Output directory: {output_dir}\n")
 
-    start_index = load_state(state_file)
-    if start_index >= len(downloads):
-        print("✅ All downloads already completed!")
-        sys.exit(0)
-
-    use_saved = input(f"▶️  Continue from last saved index {start_index}? (Y/n): ").strip().lower() or 'y'
+    use_saved = input("▶️  Continue from saved per-item progress? (Y/n): ").strip().lower() or 'y'
     if use_saved != 'y':
         start_index = interactive_menu(downloads)
+    else:
+        start_index = 0
 
     display_download_summary(downloads, start_index)
 
