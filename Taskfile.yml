@@ -2,28 +2,28 @@ version: "3"
 
 tasks:
   default:
-    desc: 📋 Show available ffmpegfyMe tasks
+    desc: Show available ffmpegfyMe tasks
     cmds:
       - task --list
 
   docker:build:
-    desc: 🔧 Build the ffmpegfyMe Docker image
+    desc: Build the ffmpegfyMe Docker image
     cmds:
       - docker compose build
 
   docker:smoke:
-    desc: ✅ Smoke check FFmpeg versions and mounted runtime paths
+    desc: Smoke check FFmpeg versions and mounted runtime paths
     cmds:
       - docker compose build
       - docker compose run --rm --no-deps --entrypoint /bin/sh ffmpegfy-me -c /app/docker/smoke-check.sh
 
   ffmpegfy:run:
-    desc: 🎬 Run the ffmpegfyMe interactive downloader
+    desc: Run the ffmpegfyMe interactive downloader
     cmds:
       - docker compose run --rm ffmpegfy-me
 
   docs:check:
-    desc: 📚 Build and check public documentation
+    desc: Build and check public documentation
     cmds:
       - zensical build --strict
       - python -m unittest tests.test_check_docs -v

@@ -29,10 +29,10 @@ def list_json_files() -> List[Path]:
 def choose_json_file() -> Path:
     files = list_json_files()
     if not files:
-        print("❌ No JSON files found in /in/")
+        print("No JSON files found in /in/")
         sys.exit(1)
 
-    print(f"\n📂 Available JSON files in {IN_DIR}/:")
+    print(f"\nAvailable JSON files in {IN_DIR}/:")
     for idx, file in enumerate(files):
         print(f"{idx}: {file.name}")
 
@@ -40,11 +40,11 @@ def choose_json_file() -> Path:
         choice = input("\nSelect the JSON file to use by index: ").strip()
         if choice.isdigit() and 0 <= int(choice) < len(files):
             return files[int(choice)]
-        print("❗ Invalid input.")
+        print("Warning: Invalid input.")
 
 
 def prompt_download_dir(default_path: Path) -> Path:
-    response = input(f"\n📁 Download directory [default: {default_path}]: ").strip()
+    response = input(f"\nDownload directory [default: {default_path}]: ").strip()
     return Path(response) if response else default_path
 
 
@@ -96,7 +96,7 @@ def process_download_item(item: Dict[str, Any], output_path: Path, state_file: P
     if output_path.exists() and not allow_overwrite:
         item_states[key] = {"status": "failed", "output": output_path.name}
         save_item_state(state_file, item_states)
-        print(f"❌ Conflict: output file already exists: {output_path.name}")
+        print(f"Conflict: output file already exists: {output_path.name}")
         return False
 
     item_states[key] = {"status": "pending", "output": output_path.name}
@@ -224,14 +224,14 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
         with open(json_file) as f:
             data = json.load(f)
     except json.JSONDecodeError:
-        print("❌ Error: Invalid JSON format.")
+        print("Error: Invalid JSON format.")
         sys.exit(1)
     except FileNotFoundError:
-        print(f"❌ File not found: {json_file}")
+        print(f"File not found: {json_file}")
         sys.exit(1)
 
     if not isinstance(data, list):
-        print("❌ Error: JSON must be a list of objects.")
+        print("Error: JSON must be a list of objects.")
         sys.exit(1)
 
     downloads: List[Dict[str, str]] = []
@@ -240,41 +240,41 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
 
     for index, item in enumerate(data):
         if not isinstance(item, dict):
-            print(f"❌ Invalid entry at index {index}. Must be an object.")
+            print(f"Invalid entry at index {index}. Must be an object.")
             sys.exit(1)
 
         unknown_fields = sorted(set(item) - ALLOWED_ITEM_FIELDS)
         if unknown_fields:
-            print(f"❌ Invalid entry at index {index}. Unknown fields: {', '.join(unknown_fields)}.")
+            print(f"Invalid entry at index {index}. Unknown fields: {', '.join(unknown_fields)}.")
             sys.exit(1)
 
         if "url" not in item or "output" not in item:
-            print(f"❌ Invalid entry at index {index}. Must contain 'url' and 'output'.")
+            print(f"Invalid entry at index {index}. Must contain 'url' and 'output'.")
             sys.exit(1)
 
         url = item["url"]
         output = item["output"]
         if not _is_valid_http_url(url):
-            print(f"❌ Invalid URL at entry index {index}. Must be a nonempty absolute HTTP/HTTPS URL.")
+            print(f"Invalid URL at entry index {index}. Must be a nonempty absolute HTTP/HTTPS URL.")
             sys.exit(1)
 
         if not _is_valid_output_filename(output):
-            print(f"❌ Invalid output filename at entry index {index}.")
+            print(f"Invalid output filename at entry index {index}.")
             sys.exit(1)
 
         stable_id = None
         if "id" in item:
             stable_id = item["id"]
             if not _is_valid_stable_id(stable_id):
-                print(f"❌ Invalid stable id at entry index {index}. Must be a safe identifier.")
+                print(f"Invalid stable id at entry index {index}. Must be a safe identifier.")
                 sys.exit(1)
             if stable_id in seen_ids:
-                print(f"❌ Duplicate stable id at entry index {index}.")
+                print(f"Duplicate stable id at entry index {index}.")
                 sys.exit(1)
             seen_ids.add(stable_id)
 
         if output.casefold() in seen_outputs:
-            print(f"❌ Duplicate output destination at entry index {index}.")
+            print(f"Duplicate output destination at entry index {index}.")
             sys.exit(1)
         seen_outputs.add(output.casefold())
 
@@ -283,25 +283,25 @@ def load_downloads(json_file: Path) -> List[Dict[str, str]]:
         if "headers" in item:
             headers = item["headers"]
             if not isinstance(headers, dict):
-                print(f"❌ Invalid headers at entry index {index}. Must be an object mapping header names to environment references.")
+                print(f"Invalid headers at entry index {index}. Must be an object mapping header names to environment references.")
                 sys.exit(1)
             seen_header_names = set()
             for header_name, header_value in headers.items():
                 if not _is_valid_http_token_header_name(header_name):
-                    print(f"❌ Invalid header name at entry index {index}. Must be a valid HTTP token header name.")
+                    print(f"Invalid header name at entry index {index}. Must be a valid HTTP token header name.")
                     sys.exit(1)
                 lowered_name = header_name.lower()
                 if lowered_name in seen_header_names:
-                    print(f"❌ Duplicate header name at entry index {index}. Header names must be unique.")
+                    print(f"Duplicate header name at entry index {index}. Header names must be unique.")
                     sys.exit(1)
                 seen_header_names.add(lowered_name)
                 if not _is_valid_env_reference(header_value):
-                    print(f"❌ Invalid header value at entry index {index}. Must be an environment variable reference.")
+                    print(f"Invalid header value at entry index {index}. Must be an environment variable reference.")
                     sys.exit(1)
         if "cookies" in item:
             cookies = item["cookies"]
             if not _is_valid_env_reference(cookies):
-                print(f"❌ Invalid cookies at entry index {index}. Must be a single environment variable reference.")
+                print(f"Invalid cookies at entry index {index}. Must be a single environment variable reference.")
                 sys.exit(1)
 
         entry = {"url": url, "output": output}
@@ -357,7 +357,7 @@ def resolve_request_auth(
 
 def validate_output_filename(filename: str) -> str:
     if not _is_valid_output_filename(filename):
-        print("❌ Invalid output filename.")
+        print("Invalid output filename.")
         sys.exit(1)
     return filename
 
@@ -509,10 +509,10 @@ def run_ffmpeg(
     except FFmpegProcessStartError:
         raise
     except subprocess.SubprocessError:
-        print("❌ FFmpeg error occurred.")
+        print("FFmpeg error occurred.")
         return 1
     except Exception:
-        print("❌ Unexpected error occurred.")
+        print("Unexpected error occurred.")
         return 1
 
 
@@ -527,11 +527,11 @@ def download_stream(
 ) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
-        print("❌ Invalid URL format.")
+        print("Invalid URL format.")
         return False
 
     if not allow_overwrite and output_path.exists():
-        print("❌ Output file already exists. Use allow_overwrite to replace it.")
+        print("Output file already exists. Use allow_overwrite to replace it.")
         return False
 
     cmd: List[str] = []
@@ -539,7 +539,7 @@ def download_stream(
 
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        print(f"⏳ Starting download to {output_path.name}...")
+        print(f"Starting download to {output_path.name}...")
 
         fd, tmp_name = tempfile.mkstemp(
             dir=str(output_path.parent),
@@ -597,10 +597,10 @@ def download_stream(
     except FFmpegOutputPromotionError:
         raise
     except subprocess.SubprocessError as e:
-        print(f"❌ FFmpeg error: {_redact_line(cmd, str(e))}")
+        print(f"FFmpeg error: {_redact_line(cmd, str(e))}")
         return False
     except Exception as e:
-        print(f"❌ Unexpected error: {_redact_line(cmd, str(e))}")
+        print(f"Unexpected error: {_redact_line(cmd, str(e))}")
         return False
     finally:
         if temp_path is not None and temp_path.exists():
@@ -611,7 +611,7 @@ def download_stream(
 
 
 def interactive_menu(links: List[Dict[str, str]]) -> int:
-    print("\n🎬 Available videos to download:\n")
+    print("\nAvailable videos to download:\n")
     for idx, item in enumerate(links):
         print(f"{idx}: {item['output']}")
     print()
@@ -622,7 +622,7 @@ def interactive_menu(links: List[Dict[str, str]]) -> int:
             sys.exit(0)
         if choice.isdigit() and 0 <= int(choice) < len(links):
             return int(choice)
-        print("❗ Invalid input.")
+        print("Warning: Invalid input.")
 
 
 def check_ffmpeg() -> bool:
@@ -635,12 +635,12 @@ def check_ffmpeg() -> bool:
 
 def display_download_summary(downloads: List[Dict[str, str]], start_index: int) -> None:
     remaining = len(downloads) - start_index
-    print(f"\n📊 Download Summary:")
+    print(f"\nDownload Summary:")
     print(f"   - Total items: {len(downloads)}")
     print(f"   - Starting at index: {start_index}")
     print(f"   - Items to download: {remaining}")
 
-    print("\n🔜 Next downloads:")
+    print("\nNext downloads:")
     for i in range(start_index, min(start_index + 3, len(downloads))):
         print(f"   - {downloads[i]['output']}")
     if remaining > 3:
@@ -652,7 +652,7 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
     try:
         headers, cookies = resolve_request_auth(item)
     except ValueError:
-        print("❌ Authentication configuration error. Download skipped.")
+        print("Authentication configuration error. Download skipped.")
         return False
 
     inactivity_timeout = _resolve_ffmpeg_inactivity_timeout(inactivity_timeout)
@@ -660,7 +660,7 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
     retries = max(0, min(max_retries, 2))
     for attempt in range(retries + 1):
         if attempt > 0:
-            print(f"⚠️ Retry attempt {attempt}/{retries}...")
+            print(f"Warning: Retry attempt {attempt}/{retries}...")
             if attempt == 1:
                 time.sleep(random.uniform(1.5, 2.5))
             else:
@@ -669,10 +669,10 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
         try:
             success = download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite, inactivity_timeout=inactivity_timeout)
         except FFmpegProcessStartError:
-            print("❌ FFmpeg could not start. Download skipped.")
+            print("FFmpeg could not start. Download skipped.")
             return False
         except FFmpegOutputPromotionError as e:
-            print(f"❌ {e} FFmpeg will not be retried.")
+            print(f"{e} FFmpeg will not be retried.")
             return False
         if success:
             return True
@@ -684,17 +684,17 @@ def main(runner: Optional[Callable] = None) -> None:
     try:
         inactivity_timeout = _resolve_ffmpeg_inactivity_timeout(None)
     except ValueError as e:
-        print(f"❌ Invalid FFmpeg inactivity timeout: {e}")
+        print(f"Invalid FFmpeg inactivity timeout: {e}")
         sys.exit(1)
 
     IN_DIR.mkdir(exist_ok=True)
     OUT_DIR.mkdir(exist_ok=True)
     PROGRESS_DIR.mkdir(exist_ok=True)
 
-    print(f"🎨 Welcome to {PROJECT_NAME} — your stream-to-file toolkit")
+    print(f"Welcome to {PROJECT_NAME} — your stream-to-file toolkit")
 
     if not check_ffmpeg():
-        print("❌ FFmpeg is not installed or not found in PATH")
+        print("FFmpeg is not installed or not found in PATH")
         sys.exit(1)
 
     json_file = choose_json_file()
@@ -705,7 +705,7 @@ def main(runner: Optional[Callable] = None) -> None:
 
     downloads = load_downloads(json_file)
     if not downloads:
-        print("⚠️ No downloads found in the JSON file")
+        print("Warning: No downloads found in the JSON file")
         sys.exit(0)
 
     state_file = PROGRESS_DIR / f"{batch_name}_state.json"
@@ -713,27 +713,27 @@ def main(runner: Optional[Callable] = None) -> None:
 
     legacy_state = state_file.exists() and is_legacy_progress_state(state_file)
     if legacy_state:
-        print(f"\n⚠️ Legacy progress found: {state_file}")
+        print(f"\nWarning: Legacy progress found: {state_file}")
         print("The last_index cannot prove which outputs completed and is not valid per-item state.")
         reset = input("Replace it with empty versioned per-item state and restart? (y/N): ").strip().lower()
         if reset != 'y':
-            print("👋 Exiting without changing progress or outputs.")
+            print("Exiting without changing progress or outputs.")
             sys.exit(0)
         item_states = {}
         save_item_state(state_file, item_states)
-        print("✅ Legacy progress replaced with empty per-item state.")
+        print("Legacy progress replaced with empty per-item state.")
     elif state_file.exists():
-        print(f"\n📄 Found saved progress for this batch: {state_file}")
-        reset = input("🔁 Do you want to reset progress and start from the beginning? (y/N): ").strip().lower()
+        print(f"\nFound saved progress for this batch: {state_file}")
+        reset = input("Do you want to reset progress and start from the beginning? (y/N): ").strip().lower()
         if reset == 'y':
             item_states = {}
             save_item_state(state_file, item_states)
-            print("✅ Progress reset to the beginning.")
+            print("Progress reset to the beginning.")
 
-    print(f"\n📝 Progress file: {state_file}")
-    print(f"💾 Output directory: {output_dir}\n")
+    print(f"\nProgress file: {state_file}")
+    print(f"Output directory: {output_dir}\n")
 
-    use_saved = input("▶️  Continue from saved per-item progress? (Y/n): ").strip().lower() or 'y'
+    use_saved = input("Continue from saved per-item progress? (Y/n): ").strip().lower() or 'y'
     if use_saved != 'y':
         start_index = interactive_menu(downloads)
     else:
@@ -741,7 +741,7 @@ def main(runner: Optional[Callable] = None) -> None:
 
     display_download_summary(downloads, start_index)
 
-    print("⚙️  Choose download mode:")
+    print("Choose download mode:")
     print("   [1] Manual (ask for each link)")
     print("   [2] Automatic (download all remaining files)")
 
@@ -749,7 +749,7 @@ def main(runner: Optional[Callable] = None) -> None:
         mode = input("Enter your choice [1/2]: ").strip()
         if mode in ['1', '2']:
             break
-        print("❗ Invalid choice. Please enter 1 or 2.")
+        print("Warning: Invalid choice. Please enter 1 or 2.")
 
     failed_downloads: List[str] = []
 
@@ -759,19 +759,19 @@ def main(runner: Optional[Callable] = None) -> None:
         output_path = output_dir / safe_filename
 
         if item_is_complete(item_states.get(item_state_key(item)), output_path):
-            print(f"⏩ Skipped (already completed): {output_path.name}")
+            print(f"Skipped (already completed): {output_path.name}")
             continue
 
-        print(f"\n🎧 Downloading [{i+1}/{len(downloads)}]: {safe_filename}")
-        print(f"📁 To:   {output_path}")
+        print(f"\nDownloading [{i+1}/{len(downloads)}]: {safe_filename}")
+        print(f"To:   {output_path}")
 
         if mode == '1':
             action = input("Press Enter to start, [s]kip, or [q]uit: ").strip().lower()
             if action == 'q':
-                print("👋 Exiting.")
+                print("Exiting.")
                 break
             elif action == 's':
-                print("⏭️  Skipped.")
+                print("Skipped.")
                 continue
 
         allow_overwrite = False
@@ -790,30 +790,30 @@ def main(runner: Optional[Callable] = None) -> None:
         )
 
         if success:
-            print(f"✅ Successfully downloaded: {safe_filename}")
+            print(f"Successfully downloaded: {safe_filename}")
         else:
             failed_downloads.append(safe_filename)
-            print(f"❌ Failed to download: {safe_filename} after retries")
+            print(f"Failed to download: {safe_filename} after retries")
             if mode == '1':
                 retry = input("Continue with next download? (Y/n): ").strip().lower() or 'y'
                 if retry != 'y':
-                    print("👋 Exiting.")
+                    print("Exiting.")
                     break
             else:
-                print("⏭️  Skipping and continuing in auto mode.")
+                print("Skipping and continuing in auto mode.")
 
     if failed_downloads:
-        print("\n❌ Failed downloads:")
+        print("\nFailed downloads:")
         for filename in failed_downloads:
             print(f"   - {filename}")
 
-    print("\n✅ All done with ffmpegfyMe!")
+    print("\nAll done with ffmpegfyMe!")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️ Download interrupted by user")
-        print("👋 Exiting ffmpegfyMe - progress has been saved")
+        print("\n\nWarning: Download interrupted by user")
+        print("Exiting ffmpegfyMe - progress has been saved")
         sys.exit(0)
