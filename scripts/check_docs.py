@@ -24,7 +24,7 @@ class PageParser(HTMLParser):
         self.h1_count = 0
         self.main_count = 0
         self.labelled_ids: set[str] = set()
-        self.controls: list[tuple[int, dict[str, str]]] = []
+        self.controls: list[tuple[int, dict[str, str], bool]] = []
         self.label_depth = 0
         self.interactive: list[dict[str, object]] = []
 
@@ -59,7 +59,7 @@ class PageParser(HTMLParser):
             hidden = "hidden" in attrs or attrs.get("aria-hidden", "").lower() == "true"
             hidden_input = tag == "input" and attrs.get("type", "text").lower() == "hidden"
             if not hidden and not hidden_input:
-                self.controls.append((line, attrs))
+                self.controls.append((line, attrs, self.label_depth > 0))
 
         if tag in {"a", "link", "script", "img"}:
             for attribute in ("href", "src"):
@@ -114,8 +114,10 @@ class PageParser(HTMLParser):
         if not self.main_count:
             self.errors.append(f"{self.relative_path}: document is missing a main landmark")
 
-        for line, attrs in self.controls:
-            if not any(attrs.get(name, "").strip() for name in ("aria-label", "aria-labelledby")):
+        for line, attrs, wrapped_by_label in self.controls:
+            if not wrapped_by_label and not any(
+                attrs.get(name, "").strip() for name in ("aria-label", "aria-labelledby")
+            ):
                 control_id = attrs.get("id", "")
                 if not control_id or control_id not in self.labelled_ids:
                     tag = attrs.get("type", "control") if "type" in attrs else "control"
@@ -176,6 +178,22 @@ def check_site(site_dir: Path, base_path: str = "") -> list[str]:
 
     for relative_path, parser in scans.items():
         for line, attribute, value in parser.links:
+            parsed = urlsplit(value)
+            path = unquote(parsed.path)
+            prefix = base_path.strip("/")
+            site_path = path.lstrip("/")
+            if (
+                path.startswith("/")
+                and not parsed.scheme
+                and not parsed.netloc
+                and prefix
+                and site_path != prefix
+                and not site_path.startswith(prefix + "/")
+            ):
+                errors.append(
+                    f"{relative_path}:{line}: internal {attribute} target is outside configured base path: {value}"
+                )
+                continue
             target, fragment = _resolve_target(root, relative_path, value, base_path)
             if target is None:
                 continue
