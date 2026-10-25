@@ -378,6 +378,10 @@ class FFmpegProcessStartError(Exception):
     """Raised when the ffmpeg subprocess fails to start."""
 
 
+class FFmpegOutputPromotionError(Exception):
+    """Raised when the final output file could not be promoted from the temp file."""
+
+
 def _run_ffmpeg_with_selector(
     process: "subprocess.Popen",
     command: List[str],
@@ -561,19 +565,24 @@ def download_stream(
             exit_code = run_ffmpeg(cmd, on_output=report_progress, inactivity_timeout=inactivity_timeout)
 
         if exit_code == 0:
-            if allow_overwrite:
-                os.replace(temp_path, output_path)
-            else:
-                try:
+            try:
+                if allow_overwrite:
+                    os.replace(temp_path, output_path)
+                else:
                     os.link(temp_path, output_path)
-                except FileExistsError:
-                    print("❌ Output file already exists. Use allow_overwrite to replace it.")
-                    return False
+            except FileExistsError:
+                raise FFmpegOutputPromotionError(
+                    f"Output file already exists: {output_path.name}. Use allow_overwrite to replace it."
+                )
+            except OSError as e:
+                raise FFmpegOutputPromotionError(f"Output promotion failed for {output_path.name}: {e}") from e
             return True
 
         return False
 
     except FFmpegProcessStartError:
+        raise
+    except FFmpegOutputPromotionError:
         raise
     except subprocess.SubprocessError as e:
         print(f"❌ FFmpeg error: {_redact_line(cmd, str(e))}")
@@ -649,6 +658,9 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
             success = download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite, inactivity_timeout=inactivity_timeout)
         except FFmpegProcessStartError:
             print("❌ FFmpeg could not start. Download skipped.")
+            return False
+        except FFmpegOutputPromotionError as e:
+            print(f"❌ {e} FFmpeg will not be retried.")
             return False
         if success:
             return True

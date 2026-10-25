@@ -462,6 +462,79 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
                 mocked_download_stream.assert_not_called()
 
 
+class TestDownloadWithRetryPromotionFailures(unittest.TestCase):
+    """Promotion failures must fail the download once instead of re-running FFmpeg."""
+
+    def setUp(self) -> None:
+        self.url = "https://cdn.example.com/video1.m3u8"
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp_dir.cleanup)
+        self.output_path = Path(self._temp_dir.name) / "video1.mp4"
+
+    def test_promotion_failure_does_not_repeat_ffmpeg(self) -> None:
+        for allow_overwrite in (False, True):
+            with self.subTest(allow_overwrite=allow_overwrite):
+                fake = FakeFFmpegRunner(exit_code=0)
+                item = _make_item()
+                if allow_overwrite:
+                    self.output_path.write_bytes(b"existing")
+                promotion_patch = (
+                    mock.patch("ffmpegfyMe.os.link", side_effect=OSError("promotion unavailable"))
+                    if not allow_overwrite
+                    else mock.patch("ffmpegfyMe.os.replace", side_effect=OSError("promotion unavailable"))
+                )
+                with promotion_patch as promotion_mock:
+                    with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                        with mock.patch("builtins.print") as printed:
+                            result = ffmpegfyMe.download_with_retry(
+                                item,
+                                self.output_path,
+                                runner=fake,
+                                max_retries=2,
+                                allow_overwrite=allow_overwrite,
+                            )
+                self.assertFalse(result)
+                self.assertEqual(len(fake.commands), 1)
+                sleep.assert_not_called()
+                promotion_mock.assert_called_once()
+                printed_messages = [str(call) for call in printed.call_args_list]
+                self.assertTrue(
+                    any("promotion" in message and "video1.mp4" in message for message in printed_messages),
+                )
+                remaining = sorted(path.name for path in Path(self._temp_dir.name).iterdir())
+                if allow_overwrite:
+                    self.assertEqual(remaining, ["video1.mp4"])
+                    self.assertEqual(self.output_path.read_bytes(), b"existing")
+                else:
+                    self.assertEqual(remaining, [])
+                    self.assertFalse(self.output_path.exists())
+
+    def test_conflict_during_promotion_stops_without_retry(self) -> None:
+        fake = FakeFFmpegRunner(exit_code=0)
+
+        def create_concurrent_output_then_conflict(_source: str, destination: Path) -> None:
+            Path(destination).write_bytes(b"concurrent")
+            raise FileExistsError("destination appeared during promotion")
+
+        with mock.patch("ffmpegfyMe.os.link", side_effect=create_concurrent_output_then_conflict):
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                with mock.patch("builtins.print") as printed:
+                    result = ffmpegfyMe.download_with_retry(
+                        _make_item(),
+                        self.output_path,
+                        runner=fake,
+                        max_retries=2,
+                    )
+
+        self.assertFalse(result)
+        self.assertEqual(len(fake.commands), 1)
+        sleep.assert_not_called()
+        self.assertEqual(self.output_path.read_bytes(), b"concurrent")
+        self.assertEqual(sorted(path.name for path in Path(self._temp_dir.name).iterdir()), ["video1.mp4"])
+        printed_messages = [str(call) for call in printed.call_args_list]
+        self.assertTrue(any("already exists" in message and "not be retried" in message for message in printed_messages))
+
+
 class TestRunFFmpegInactivityTimeout(unittest.TestCase):
     def test_raises_ffmpeg_inactivity_timeout(self) -> None:
         with self.assertRaises(ffmpegfyMe.FFmpegInactivityTimeout):
