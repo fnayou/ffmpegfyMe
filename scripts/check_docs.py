@@ -25,7 +25,7 @@ class PageParser(HTMLParser):
         self.main_count = 0
         self.labelled_ids: set[str] = set()
         self.controls: list[tuple[int, dict[str, str], bool]] = []
-        self.label_stack: list[str | None] = []
+        self.label_stack: list[tuple[str | None, bool]] = []
         self.interactive: list[dict[str, object]] = []
 
     def handle_starttag(self, tag: str, attributes: list[tuple[str, str | None]]) -> None:
@@ -47,7 +47,7 @@ class PageParser(HTMLParser):
 
         if tag == "label":
             label_for = attrs.get("for") if "for" in attrs else None
-            self.label_stack.append(label_for)
+            self.label_stack.append((label_for, False))
             if label_for:
                 self.labelled_ids.add(label_for)
 
@@ -58,7 +58,12 @@ class PageParser(HTMLParser):
             hidden = "hidden" in attrs or attrs.get("aria-hidden", "").lower() == "true"
             hidden_input = tag == "input" and attrs.get("type", "text").lower() == "hidden"
             if not hidden and not hidden_input:
-                wrapped_by_label = bool(self.label_stack and self.label_stack[-1] is None)
+                wrapped_by_label = False
+                if self.label_stack:
+                    label_for, control_claimed = self.label_stack[-1]
+                    if label_for is None and not control_claimed:
+                        wrapped_by_label = True
+                        self.label_stack[-1] = (label_for, True)
                 self.controls.append((line, attrs, wrapped_by_label))
 
         if tag in {"a", "link", "script", "img"}:
