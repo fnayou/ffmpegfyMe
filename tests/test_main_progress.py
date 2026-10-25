@@ -221,6 +221,88 @@ class MainProgressTests(unittest.TestCase):
         self.assertEqual(mocked_process.call_count, 1)
         self.assertEqual(mocked_process.call_args.kwargs.get("inactivity_timeout"), 42.5)
 
+    def test_empty_manifest_exits_without_processing(self) -> None:
+        self._write_manifest([])
+        runner = FakeMainRunner()
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            with self.assertRaises(SystemExit) as ctx:
+                ffmpegfyMe.main(runner=runner)
+
+        self.assertEqual(ctx.exception.code, 0)
+        self.assertIn("No downloads found", output.getvalue())
+        self.assertEqual(runner.commands, [])
+        self.assertFalse(self.state_file.exists())
+
+    def test_resetting_saved_progress_restarts_item(self) -> None:
+        item = {"id": "item-a", "url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}
+        self._write_manifest([item])
+        ffmpegfyMe.save_item_state(
+            self.state_file,
+            {ffmpegfyMe.item_state_key(item): {"status": "succeeded", "output": "video-a.mp4"}},
+        )
+        runner = FakeMainRunner()
+
+        self._run_main(["y", "y", "2"], runner)
+
+        self.assertEqual(len(runner.commands), 1)
+        self.assertEqual((self.batch_dir / "video-a.mp4").read_bytes(), b"new-content")
+        self.assertEqual(
+            ffmpegfyMe.load_item_state(self.state_file),
+            {ffmpegfyMe.item_state_key(item): {"status": "succeeded", "output": "video-a.mp4"}},
+        )
+
+    def test_manual_failed_item_can_continue_to_next_item(self) -> None:
+        item_a = {"url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}
+        item_b = {"url": "https://cdn.example.com/b.m3u8", "output": "video-b.mp4"}
+        self._write_manifest([item_a, item_b])
+
+        class FailFirstItemRunner:
+            def __init__(self) -> None:
+                self.commands = []
+
+            def __call__(self, command, on_output=None) -> int:
+                self.commands.append(list(command))
+                if command[command.index("-i") + 1] == item_a["url"]:
+                    return 1
+                Path(command[-1]).write_bytes(b"new-content")
+                return 0
+
+        runner = FailFirstItemRunner()
+        with mock.patch("builtins.input", side_effect=["y", "1", "", "y", ""]):
+            with mock.patch("ffmpegfyMe.time.sleep"):
+                with redirect_stdout(io.StringIO()):
+                    ffmpegfyMe.main(runner=runner)
+
+        attempted_urls = [command[command.index("-i") + 1] for command in runner.commands]
+        self.assertEqual(attempted_urls.count(item_a["url"]), 3)
+        self.assertIn(item_b["url"], attempted_urls)
+        self.assertEqual((self.batch_dir / "video-b.mp4").read_bytes(), b"new-content")
+
+    def test_manual_failed_item_can_stop_batch(self) -> None:
+        item_a = {"url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}
+        item_b = {"url": "https://cdn.example.com/b.m3u8", "output": "video-b.mp4"}
+        self._write_manifest([item_a, item_b])
+
+        class FailRunner:
+            def __init__(self) -> None:
+                self.commands = []
+
+            def __call__(self, command, on_output=None) -> int:
+                self.commands.append(list(command))
+                return 1
+
+        runner = FailRunner()
+        with mock.patch("builtins.input", side_effect=["y", "1", "", "n"]):
+            with mock.patch("ffmpegfyMe.time.sleep"):
+                with redirect_stdout(io.StringIO()):
+                    ffmpegfyMe.main(runner=runner)
+
+        attempted_urls = [command[command.index("-i") + 1] for command in runner.commands]
+        self.assertEqual(attempted_urls, [item_a["url"]] * 3)
+        self.assertFalse((self.batch_dir / "video-b.mp4").exists())
+
     def test_process_download_item_passes_inactivity_timeout_to_download_with_retry(self) -> None:
         item = {
             "id": "item-a",
