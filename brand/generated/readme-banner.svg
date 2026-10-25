@@ -1,25 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480" role="img" aria-labelledby="ffmpegfyMeBannerTitle">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480" width="1600" height="480" role="img" aria-labelledby="ffmpegfyMeBannerTitle ffmpegfyMeBannerDesc">
   <title id="ffmpegfyMeBannerTitle">ffmpegfyMe</title>
-  <rect x="0" y="0" width="1600" height="480" fill="#24273a" />
-  <rect x="430" y="72" width="190" height="190" rx="22" fill="none" stroke="#cad3f5" stroke-width="7" />
-  <g fill="#24273a">
-    <circle cx="430" cy="108" r="6" />
-    <circle cx="430" cy="167" r="6" />
-    <circle cx="430" cy="226" r="6" />
-    <circle cx="620" cy="108" r="6" />
-    <circle cx="620" cy="167" r="6" />
-    <circle cx="620" cy="226" r="6" />
+  <desc id="ffmpegfyMeBannerDesc">Download HTTP/HLS streams as MP4 or MKV — no transcoding.</desc>
+  <defs>
+    <pattern id="perforation" x="0" y="0" width="40" height="12" patternUnits="userSpaceOnUse">
+      <rect x="14" y="0" width="12" height="12" rx="3" fill="#363a4f" />
+    </pattern>
+  </defs>
+  <rect x="0" y="0" width="1600" height="480" rx="24" fill="#24273a" />
+  <!-- Film-strip edges -->
+  <rect x="0" y="0" width="1600" height="44" rx="24" fill="#1e2030" />
+  <rect x="0" y="24" width="1600" height="20" fill="#1e2030" />
+  <rect x="0" y="436" width="1600" height="44" rx="24" fill="#1e2030" />
+  <rect x="0" y="436" width="1600" height="20" fill="#1e2030" />
+  <rect x="40" y="16" width="1520" height="12" fill="url(#perforation)" />
+  <rect x="40" y="452" width="1520" height="12" fill="url(#perforation)" />
+  <!-- Wordmark, same geometry as logo.svg -->
+  <g transform="translate(290 54)">
+    <rect x="28" y="24" width="192" height="192" rx="30" fill="#181926" stroke="#494d64" stroke-width="4" />
+    <rect x="58" y="36" width="132" height="168" rx="14" fill="#1e2030" stroke="#363a4f" stroke-width="3" />
+    <g fill="#363a4f">
+      <rect x="37" y="46" width="12" height="18" rx="4" />
+      <rect x="37" y="87" width="12" height="18" rx="4" />
+      <rect x="37" y="128" width="12" height="18" rx="4" />
+      <rect x="37" y="169" width="12" height="18" rx="4" />
+      <rect x="199" y="46" width="12" height="18" rx="4" />
+      <rect x="199" y="87" width="12" height="18" rx="4" />
+      <rect x="199" y="128" width="12" height="18" rx="4" />
+      <rect x="199" y="169" width="12" height="18" rx="4" />
+    </g>
+    <g fill="none" stroke="#cad3f5" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 127 76 C 124 62 108 57 101 69 C 99 73 98 78 97 84 L 87 170 C 85 187 77 196 66 193" />
+      <path d="M 175 76 C 172 62 156 57 149 69 C 147 73 146 78 145 84 L 135 170 C 133 187 125 196 114 193" />
+      <path d="M 76 117 C 108 113 140 110 171 107" />
+    </g>
+    <g fill="none" stroke="#cad3f5" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 268 162 V 78 L 308 132 L 348 78 V 162" />
+      <path d="M 374 162 V 78 H 410 C 434 78 446 92 446 112 C 446 132 434 146 410 146 H 374" />
+      <path d="M 536 78 H 476 V 162 H 536 M 476 120 H 528" />
+      <path d="M 642 96 C 634 84 620 78 604 78 C 580 78 562 96 562 120 C 562 144 580 162 604 162 C 628 162 646 146 646 122 H 610" />
+    </g>
+    <g fill="none" stroke="#91d7e3" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 698 162 V 100 C 698 84 706 76 720 76 C 728 76 734 79 737 84 M 684 112 H 724" />
+      <path d="M 748 108 L 774 160 M 800 108 L 766 176 C 760 188 754 194 742 194" />
+      <path d="M 824 162 V 78 L 864 132 L 904 78 V 162" />
+      <path d="M 932 136 H 985 C 985 120 974 108 958 108 C 942 108 931 120 931 135 C 931 151 942 162 959 162 C 969 162 977 158 983 152" />
+    </g>
   </g>
-  <g fill="none" stroke="#cad3f5" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 480 222 V 164 C 480 147 489 137 505 137 C 516 137 523 143 526 151 M 480 188 H 518" />
-    <path d="M 533 222 V 164 C 533 147 542 137 558 137 C 569 137 576 143 579 151 M 533 188 H 571" />
+  <text x="800" y="336" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="36" font-weight="500" fill="#cad3f5">Download HTTP/HLS streams as MP4 or MKV — no transcoding.</text>
+  <!-- Feature cues from brand/data/facts.json -->
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" fill="#b8c0e0" text-anchor="middle">
+    <rect x="310" y="368" width="300" height="40" rx="20" fill="#1e2030" stroke="#494d64" stroke-width="2" />
+    <circle cx="334" cy="388" r="4" fill="#91d7e3" />
+    <text x="470" y="395">Authenticated HTTP/HLS</text>
+    <rect x="630" y="368" width="270" height="40" rx="20" fill="#1e2030" stroke="#494d64" stroke-width="2" />
+    <circle cx="654" cy="388" r="4" fill="#91d7e3" />
+    <text x="775" y="395">MP4/MKV stream copy</text>
+    <rect x="920" y="368" width="370" height="40" rx="20" fill="#1e2030" stroke="#494d64" stroke-width="2" />
+    <circle cx="944" cy="388" r="4" fill="#91d7e3" />
+    <text x="1115" y="395">Resumable batches with retries</text>
   </g>
-  <text x="660" y="214" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="72" fill="#cad3f5">MPEG</text>
-  <g fill="none" stroke="#91d7e3" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 908 214 V 163 C 908 147 916 139 930 139 C 939 139 945 143 948 151 M 908 185 H 940" />
-    <path d="M 958 159 C 966 181 974 199 982 213 M 1000 159 C 992 181 986 199 982 213 C 990 229 987 241 975 249" />
-    <path d="M 1010 214 V 149 L 1044 181 L 1078 149 V 214" />
-    <path d="M 1095 190 C 1095 172 1105 160 1120 160 C 1135 160 1144 171 1144 187 H 1096 C 1096 205 1108 216 1126 216 C 1135 216 1142 213 1147 208" />
-  </g>
-  <text x="800" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="36" fill="#cad3f5">Download HTTP/HLS streams as MP4 or MKV — no transcoding.</text>
 </svg>
