@@ -152,11 +152,7 @@ task ffmpegfy:run
 
 ## Tests
 
-Run the Python test suite:
-
-```bash
-python3 -m unittest discover -v
-```
+Run the Python test suite with branch coverage. See [CONTRIBUTING.md](CONTRIBUTING.md#tests-and-ci) for the local environment and commands.
 
 GitHub Actions runs it on pull requests to `main` and pushes to `main`.
 
