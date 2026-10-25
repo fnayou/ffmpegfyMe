@@ -10,6 +10,7 @@ from scripts.brand_generate import (
     BrandError,
     check_brand_assets,
     check_generated_assets,
+    check_website_assets,
     render_favicon_svg,
     render_generated_assets,
     render_logo_svg,
@@ -19,6 +20,7 @@ from scripts.brand_generate import (
     validate_palette,
     validate_social_preview_png,
     write_generated_assets,
+    write_website_assets,
 )
 
 
@@ -130,6 +132,44 @@ class BrandGenerateTests(unittest.TestCase):
                 ],
             )
 
+    def test_check_detects_missing_and_stale_website_logo_and_favicon(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            data_dir = root / "brand" / "data"
+            data_dir.mkdir(parents=True)
+            (data_dir / "brand.json").write_text(json.dumps(VALID_PALETTE), encoding="utf-8")
+            (data_dir / "facts.json").write_text(json.dumps(VALID_FACTS), encoding="utf-8")
+            assets = self.render_assets_without_rsvg()
+            write_generated_assets(root, assets)
+            website_assets_dir = root / "website" / "assets"
+            website_assets_dir.mkdir(parents=True)
+            write_website_assets(root, assets)
+
+            self.assertEqual(check_brand_assets(root), [])
+
+            logo_path = website_assets_dir / "logo.svg"
+            logo_path.write_bytes(b"stale")
+            self.assertEqual(check_brand_assets(root), ["stale website asset: website/assets/logo.svg"])
+
+            favicon_path = website_assets_dir / "favicon.svg"
+            favicon_path.unlink()
+            self.assertEqual(
+                check_brand_assets(root),
+                [
+                    "missing website asset: website/assets/favicon.svg",
+                    "stale website asset: website/assets/logo.svg",
+                ],
+            )
+
+    def test_write_website_assets_copies_canonical_brand_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            assets = self.render_assets_without_rsvg()
+            write_website_assets(root, assets)
+            website_assets_dir = root / "website" / "assets"
+            self.assertEqual((website_assets_dir / "logo.svg").read_bytes(), assets["logo.svg"])
+            self.assertEqual((website_assets_dir / "favicon.svg").read_bytes(), assets["favicon.svg"])
+
     def test_brand_check_uses_metadata_to_detect_stale_png_without_rendering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -139,6 +179,7 @@ class BrandGenerateTests(unittest.TestCase):
             (data_dir / "facts.json").write_text(json.dumps(VALID_FACTS), encoding="utf-8")
             assets = self.render_assets_without_rsvg()
             write_generated_assets(root, assets)
+            write_website_assets(root, assets)
 
             with patch("scripts.brand_generate.render_social_preview_png", side_effect=AssertionError("renderer called")):
                 self.assertEqual(check_brand_assets(root), [])

@@ -1,10 +1,12 @@
 # ffmpegfyMe
 
+**Download HTTP/HLS streams as MP4 or MKV — no transcoding.**
+
 **ffmpegfyMe** is an interactive or batch Python wrapper around
 [FFmpeg](https://ffmpeg.org/) for downloading HTTP and HTTPS media streams,
 commonly HLS playlists, and saving them into local media files.
 
-## What it does
+## Implemented capabilities
 
 - Downloads HTTP/HTTPS media streams, commonly HLS (`.m3u8`) playlists.
 - Copies the stream into an `.mp4` or `.mkv` container using FFmpeg stream copy
@@ -35,3 +37,7 @@ An `.mp4` or `.mkv` output is required; unsupported codec or container combinati
 fail and are reported per item.
 
 See [Troubleshooting](troubleshooting.md) for common failures.
+
+## Implemented today
+
+Feature descriptions across this site and the README describe implemented behavior. Planned work is tracked in GitHub Issues and may not be available yet.

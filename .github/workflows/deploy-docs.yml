@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "site-docs/**"
+      - "website/**"
       - "zensical.toml"
       - "requirements-docs.txt"
       - ".github/workflows/deploy-docs.yml"

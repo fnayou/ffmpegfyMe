@@ -1,91 +1,70 @@
 # ffmpegfyMe
 
-**ffmpegfyMe** is a Dockerized Python CLI tool for downloading streaming media (e.g. `.m3u8`) using `ffmpeg`.  
-It offers interactive or batch downloading, progress tracking, retry logic, and state persistence.
+![ffmpegfyMe](brand/generated/readme-banner.svg)
 
-[Documentation](https://fnayou.github.io/ffmpegfyMe/)
+**Download HTTP/HLS streams as MP4 or MKV — no transcoding.**
 
----
+ffmpegfyMe is a Python CLI that wraps FFmpeg to download HTTP/HTTPS media streams, commonly HLS playlists, into local MP4 or MKV files.
 
-## Features
+## Implemented capabilities
 
--   Stream download using `ffmpeg`
--   Manual or automatic batch mode
--   Progress tracking per batch
--   Retry logic and skip for already-downloaded files
--   Persistent state across runs
--   Docker + Taskfile support
--   Input via versioned JSON list file
+- Interactive or batch Python CLI.
+- HTTP/HTTPS inputs; playlist segments may use HTTP, HTTPS, TCP, TLS, or crypto via the FFmpeg protocol whitelist.
+- MP4 or MKV outputs via FFmpeg stream copy (`-c copy`); no transcoding.
+- Optional HTTP header or cookie auth with exact `${ENV_NAME}` references from a git-ignored `.env`.
+- Saved per-item progress; completed items are skipped on rerun.
+- Initial attempt plus up to two retries.
+- 60 second default inactivity timeout, reset by FFmpeg output; no total timeout by default.
 
----
+Every capability listed here is implemented. Planned work is tracked in GitHub Issues and may not be available.
 
-## Project Structure
+## Prerequisites
+
+**Docker quick start** (for the shown `task` commands):
+
+- Docker Engine + Docker Compose
+- Task
+
+**Direct local use** (only):
+
+- Python 3.11+
+- FFmpeg installed and on `PATH`
+
+## Quick start
 
 ```bash
-ffmpegfyMe/
-├── ffmpegfyMe.py              # Main CLI script
-├── docker/
-│   └── Dockerfile             # ffmpeg + Python base image
-├── compose.yml                # Compose service: ffmpegfy-me
-├── Taskfile.yml               # Task runner integration
-├── .gitignore
-├── requirements.txt
-├── in/
-│   ├── stream-list.json       # Versioned input list
-│   └── .gitkeep
-├── out/
-│   └── .gitkeep
-└── progress/
-    └── .gitkeep
+task docker:build
+task ffmpegfy:run
 ```
 
----
+Before running, add one or more JSON manifests to in/; the minimal example below shows the required fields. For direct local use from the repository root, run python3 ffmpegfyMe.py.
 
-## Usage
-
-### 1. Prepare your input file
-
-Example: `in/stream-list.json`
+## Minimal manifest
 
 ```json
 [
     {
         "url": "https://cdn.example.com/video1.m3u8",
-        "output": "video1.mp4",
-        "id": "video-1"
+        "output": "video1.mp4"
     }
 ]
 ```
 
-The optional `id` is a public stable identifier and must not contain secrets.
-
-### 2. Build the container
-
-```bash
-task docker:build
-```
-
-### 3. Run interactively
-
-```bash
-task ffmpegfy:run
-```
-
-### 4. Configure authentication (optional)
+## Authentication
 
 Protected sources may require HTTP header or cookie auth.
 
-Supported source and HLS segment protocols are `HTTP`/`HTTPS`. FFmpeg runs with
-`-protocol_whitelist http,https,tcp,tls,crypto`, so nested protocols are restricted.
+Auth values use exact environment references such as `${API_TOKEN}` or `${SESSION_COOKIE}`.
 
-Manifest example with auth env references (`in/stream-list.json`):
+References must be exact `${ENV_NAME}` values; prefixed values such as `Bearer ${API_TOKEN}` are invalid.
+
+The optional `headers` and `cookies` fields may be omitted for unauthenticated sources.
 
 ```json
 [
     {
         "url": "https://cdn.example.com/video1.m3u8",
         "output": "video1.mp4",
-        "id": "video-1",
         "headers": {
             "Authorization": "${API_TOKEN}"
         },
@@ -94,97 +73,29 @@ Manifest example with auth env references (`in/stream-list.json`):
 ]
 ```
 
--   Env references must be exactly `${ENV_NAME}` (e.g. `${API_TOKEN}`, `${SESSION_COOKIE}`).
--   Values like `Bearer ${API_TOKEN}` are invalid; refs must be exact.
--   Credentials do not belong in the manifest; only `${ENV_NAME}` placeholders.
+Credentials live in a git-ignored `.env` and are injected via `env_file` for Docker; direct local runs need the variables exported in the process environment.
 
-Header and cookie auth can serve playlists and segments.
+Displayed FFmpeg output and error lines redact HTTP(S) URLs and resolved header/cookie values. Progress state stores item status, output, and an identity key, not raw manifest URLs or credentials.
 
-Create a git-ignored `.env` with placeholder example values:
+Signed URLs remain plaintext in the manifest. Protect it, and do not share or commit URLs containing credentials.
 
-```bash
-API_TOKEN=your-api-token-here
-SESSION_COOKIE=your-session-cookie-here
-```
+Local users or processes may inspect credential-bearing FFmpeg arguments while FFmpeg runs.
 
-Compose injects these values at runtime via `env_file`. No real secrets.
+## Documentation
 
-Credentials are redacted (shown as `[REDACTED]`) in CLI output, errors, FFmpeg diagnostics, progress, and summaries.
-
-Limitation: local users/processes may inspect credential-bearing FFmpeg arguments while FFmpeg runs.
-
-### FFmpeg inactivity timeout
-
-Default inactivity timeout is 60 seconds without FFmpeg output; any output resets the inactivity timer.
-
-Set positive seconds with `FFMPEG_INACTIVITY_TIMEOUT` in the git-ignored `.env`:
-
-```bash
-FFMPEG_INACTIVITY_TIMEOUT=120
-```
-
-Invalid, non-finite, zero, and negative values produce a clear error before batch processing.
-
-A timeout counts as a failed attempt and follows the retry policy: initial attempt plus up to two retries.
-
-There is no total-download time limit by default; a download can run longer while FFmpeg continues producing output.
-
----
-
-## Docker
-
--   Base image: `python:3.11-slim-bookworm`
--   FFmpeg pinned to Debian Bookworm package `7:5.1.9-0+deb12u1` (ffmpeg + ffprobe report `5.1.9`)
--   Source: <https://packages.debian.org/bookworm/ffmpeg>
-
-### Runtime data & secrets
-
--   Image contains code only — no Git metadata, manifests, credentials, media, output, or progress state.
--   Manifests (`in/`), credentials (`.env`), outputs (`out/`), progress state (`progress/`) are supplied at runtime via bind mounts / env file.
-
-```bash
-task docker:build
-task docker:smoke
-task ffmpegfy:run
-```
-
--   Secrets live in `.env` (git-ignored) and are injected via `env_file` at runtime only.
-
----
-
-## Tests
-
-Run the Python test suite with branch coverage. See [CONTRIBUTING.md](CONTRIBUTING.md#tests-and-ci) for the local environment and commands.
-
-GitHub Actions runs it on pull requests to `main` and pushes to `main`.
-
----
-
-## Dependencies
-
--   Python 3.11+
--   `ffmpeg` installed in container
--   Docker + Compose plugin
--   Taskfile (https://taskfile.dev)
-
----
+- [Documentation](https://fnayou.github.io/ffmpegfyMe/)
+- [Getting Started](website/getting-started.md)
+- [Manifest](website/manifest.md)
+- [Authentication](website/authentication.md)
+- [Reliability](website/reliability.md)
+- [Troubleshooting](website/troubleshooting.md)
 
 ## Community
 
--   [Code of Conduct](CODE_OF_CONDUCT.md)
--   [Contributing](CONTRIBUTING.md)
--   [Security](SECURITY.md)
--   [Support](SUPPORT.md)
-
-## License
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Security](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [License](LICENSE)
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-## Author
-
-```txt
-Name: Aymen FNAYOU
-GitHub: https://github.com/fnayou
-```

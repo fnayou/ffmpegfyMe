@@ -28,6 +28,7 @@ SOCIAL_PREVIEW_METADATA = "social-preview.json"
 SOCIAL_PREVIEW_WIDTH = 1280
 SOCIAL_PREVIEW_HEIGHT = 640
 SOCIAL_PREVIEW_MAX_BYTES = 1_000_000
+WEBSITE_ASSET_NAMES = ("logo.svg", "favicon.svg")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 PALETTE_KEYS = ("base", "mantle", "crust", "text", "subtext1", "surface0", "surface1", "sky")
@@ -216,6 +217,27 @@ def write_generated_assets(root: Path, assets: dict[str, bytes]) -> None:
         (generated_dir / filename).write_bytes(content)
 
 
+def check_website_assets(root: Path, assets: dict[str, bytes]) -> list[str]:
+    errors: list[str] = []
+    website_assets_dir = root / "website" / "assets"
+    for filename in sorted(WEBSITE_ASSET_NAMES):
+        expected_bytes = assets[filename]
+        path = website_assets_dir / filename
+        if not path.is_file():
+            errors.append(f"missing website asset: website/assets/{filename}")
+            continue
+        if path.read_bytes() != expected_bytes:
+            errors.append(f"stale website asset: website/assets/{filename}")
+    return errors
+
+
+def write_website_assets(root: Path, assets: dict[str, bytes]) -> None:
+    website_assets_dir = root / "website" / "assets"
+    website_assets_dir.mkdir(parents=True, exist_ok=True)
+    for filename in sorted(WEBSITE_ASSET_NAMES):
+        (website_assets_dir / filename).write_bytes(assets[filename])
+
+
 def generate_brand_assets(root: Path) -> dict[str, bytes]:
     palette = _read_json(root / "brand" / "data" / "brand.json")
     facts = _read_json(root / "brand" / "data" / "facts.json")
@@ -235,6 +257,7 @@ def check_brand_assets(root: Path) -> list[str]:
         "social-preview.svg": render_social_preview_svg(palette, facts).encode("utf-8"),
     }
     errors = check_generated_assets(root, svg_assets)
+    errors.extend(check_website_assets(root, svg_assets))
     generated_dir = root / "brand" / "generated"
     png_path = generated_dir / "social-preview.png"
     metadata_path = generated_dir / SOCIAL_PREVIEW_METADATA
@@ -281,6 +304,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.generate:
             assets = generate_brand_assets(ROOT_DIR)
             write_generated_assets(ROOT_DIR, assets)
+            write_website_assets(ROOT_DIR, assets)
             for filename in sorted(assets):
                 content = assets[filename]
                 detail = f"{len(content)} bytes" if filename.endswith(".png") else "JSON" if filename.endswith(".json") else "SVG"

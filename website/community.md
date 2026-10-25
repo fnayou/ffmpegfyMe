@@ -18,4 +18,4 @@
 - Repository: <https://github.com/fnayou/ffmpegfyMe>
 - Issues: <https://github.com/fnayou/ffmpegfyMe/issues>
 
-Public documentation lives in `site-docs/`. Repository-internal guidance is not published.
+Public documentation lives in `website/`. Repository-internal guidance is not published.
