@@ -10,6 +10,7 @@ on:
       - "scripts/brand_generate.py"
       - "tests/test_brand_generate.py"
       - "Taskfile.yml"
+      - "website/assets/**"
       - ".github/workflows/brand.yml"
 
 permissions:

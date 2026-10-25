@@ -1,8 +1,8 @@
 [project]
 site_name = "ffmpegfyMe"
 site_url = "https://fnayou.github.io/ffmpegfyMe/"
-site_description = "Interactive or batch Python wrapper around FFmpeg for downloading HTTP and HTTPS media streams, commonly HLS playlists, and copying them into MP4 or MKV containers."
-docs_dir = "site-docs"
+site_description = "Interactive or batch Python CLI that downloads HTTP and HTTPS media streams, commonly HLS playlists, via FFmpeg stream copy into MP4 or MKV outputs with retries and progress tracking."
+docs_dir = "website"
 site_dir = "site"
 repo_url = "https://github.com/fnayou/ffmpegfyMe"
 
@@ -20,6 +20,8 @@ extra_css = ["stylesheets/catppuccin.css"]
 
 [project.theme]
 language = "en"
+logo = "assets/logo.svg"
+favicon = "assets/favicon.svg"
 palette = [
     { scheme = "macchiato", primary = "custom", accent = "custom" },
 ]
