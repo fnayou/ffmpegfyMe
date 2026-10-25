@@ -11,10 +11,10 @@ ffmpegfyMe is a Python CLI that wraps FFmpeg to download HTTP/HTTPS media stream
 - Interactive or batch Python CLI.
 - HTTP/HTTPS inputs; playlist segments may use HTTP, HTTPS, TCP, TLS, or crypto via the FFmpeg protocol whitelist.
 - MP4 or MKV outputs via FFmpeg stream copy (`-c copy`); no transcoding.
-- Optional HTTP header or cookie auth with exact `${ENV_NAME}` references from a git-ignored `.env`.
+- Optional HTTP header or cookie auth uses exact `${ENV_NAME}` environment references.
 - Saved per-item progress; completed items are skipped on rerun.
 - Initial attempt plus up to two retries.
-- 60 second default inactivity timeout, reset by FFmpeg output; no total timeout by default.
+- 60-second default inactivity timeout, reset by FFmpeg output. No total-download timeout is implemented.
 
 Every capability listed here is implemented. Planned work is tracked in GitHub Issues and may not be available.
 
@@ -32,12 +32,20 @@ Every capability listed here is implemented. Planned work is tracked in GitHub I
 
 ## Quick start
 
+Before running, add one or more JSON manifests to `in/`. The minimal example below shows the required fields.
+
+For Docker, run:
+
 ```bash
 task docker:build
 task ffmpegfy:run
 ```
 
-Before running, add one or more JSON manifests to in/; the minimal example below shows the required fields. For direct local use from the repository root, run python3 ffmpegfyMe.py.
+For direct local use from the repository root, run:
+
+```bash
+python3 ffmpegfyMe.py
+```
 
 ## Minimal manifest
 
@@ -75,7 +83,7 @@ The optional `headers` and `cookies` fields may be omitted for unauthenticated s
 
 Credentials live in a git-ignored `.env` and are injected via `env_file` for Docker; direct local runs need the variables exported in the process environment.
 
-Displayed FFmpeg output and error lines redact HTTP(S) URLs and resolved header/cookie values. Progress state stores item status, output, and an identity key, not raw manifest URLs or credentials.
+Displayed FFmpeg output and error lines redact HTTP(S) URLs and configured cookie values. Header values may appear if FFmpeg echoes them. Progress state stores item status, output, and an identity key, not raw manifest URLs or credentials.
 
 Signed URLs remain plaintext in the manifest. Protect it, and do not share or commit URLs containing credentials.
 

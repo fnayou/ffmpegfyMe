@@ -2,9 +2,14 @@
 
 ## Prerequisites
 
+**Docker Compose:**
+
+- Docker Engine and Docker Compose
+
+**Direct local use:**
+
 - Python 3.11+
 - FFmpeg installed and available on `PATH`
-- Docker Engine and Docker Compose (optional, for container use)
 
 ## Docker Compose
 
