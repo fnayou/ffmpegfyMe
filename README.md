@@ -3,6 +3,8 @@
 **ffmpegfyMe** is a Dockerized Python CLI tool for downloading streaming media (e.g. `.m3u8`) using `ffmpeg`.  
 It offers interactive or batch downloading, progress tracking, retry logic, and state persistence.
 
+[Documentation](https://fnayou.github.io/ffmpegfyMe/)
+
 ---
 
 ## Features
