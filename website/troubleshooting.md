@@ -26,7 +26,7 @@ Manual mode asks before overwrite. Automatic mode records a conflict/failure and
 
 Default is 60 seconds. Any FFmpeg output resets it.
 
-Set `FFMPEG_INACTIVITY_TIMEOUT` to a finite positive number.
+Set `FFMPEG_INACTIVITY_TIMEOUT` to a finite positive number in `.env` for Compose, or export it for direct local runs.
 
 ## Unsupported codecs/container combinations
 

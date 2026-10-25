@@ -25,7 +25,7 @@ Every capability listed here is implemented. Planned work is tracked in GitHub I
 - Docker Engine + Docker Compose
 - Task
 
-**Direct local use** (only):
+**Direct local use (without Docker):**
 
 - Python 3.11+
 - FFmpeg installed and on `PATH`

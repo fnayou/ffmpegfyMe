@@ -10,14 +10,14 @@ Inactivity timeouts and other FFmpeg download failures use this retry policy. Au
 
 - Default inactivity timeout: 60 seconds.
 - Any FFmpeg output resets the timer.
-- Set with `FFMPEG_INACTIVITY_TIMEOUT`.
+- Set `FFMPEG_INACTIVITY_TIMEOUT` in `.env` for Compose, or export it for direct local runs.
 - Must be a finite positive number.
 
 Invalid, non-finite, zero, and negative values produce a clear error before batch processing.
 
 ## No total-download cap
 
-There is no total-download time limit by default.
+No total-download timeout is implemented.
 
 ## Progress and state
 
