@@ -4,16 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "site-docs/**"
-      - "zensical.toml"
-      - "requirements-docs.txt"
-      - "scripts/check_docs.py"
-      - "tests/test_check_docs.py"
-      - "Taskfile.yml"
-      - "CONTRIBUTING.md"
-      - ".github/workflows/docs-quality.yml"
-      - ".github/workflows/deploy-docs.yml"
   push:
     branches:
       - main
