@@ -89,6 +89,60 @@ class MainProgressTests(unittest.TestCase):
         key_b = ffmpegfyMe.item_state_key(item_b)
         self.assertEqual(saved[key_b], {"status": "succeeded", "output": "video-b.mp4"})
 
+    def test_legacy_last_index_does_not_infer_success_and_preserves_output(self) -> None:
+        item_a = {
+            "id": "item-a",
+            "url": "https://cdn.example.com/a.m3u8",
+            "output": "video-a.mp4",
+        }
+        item_b = {
+            "id": "item-b",
+            "url": "https://cdn.example.com/b.m3u8",
+            "output": "video-b.mp4",
+        }
+        self._write_manifest([item_a, item_b])
+        self.batch_dir.mkdir()
+        (self.batch_dir / "video-a.mp4").write_bytes(b"keep")
+        self.state_file.write_text(json.dumps({"last_index": 1}), encoding="utf-8")
+        runner = FakeMainRunner()
+        output = io.StringIO()
+        with mock.patch("builtins.input", side_effect=["y", "y", "2"]):
+            with redirect_stdout(output):
+                ffmpegfyMe.main(runner=runner)
+
+        report = output.getvalue()
+        self.assertIn("legacy", report.lower())
+        self.assertIn("last_index", report)
+        self.assertIn("cannot prove", report)
+
+        self.assertEqual((self.batch_dir / "video-a.mp4").read_bytes(), b"keep")
+        self.assertEqual(len(runner.commands), 1)
+        self.assertEqual(runner.commands[0][runner.commands[0].index("-i") + 1], item_b["url"])
+        self.assertEqual((self.batch_dir / "video-b.mp4").read_bytes(), b"new-content")
+        saved = ffmpegfyMe.load_item_state(self.state_file)
+        key_a = ffmpegfyMe.item_state_key(item_a)
+        key_b = ffmpegfyMe.item_state_key(item_b)
+        self.assertEqual(saved[key_a]["status"], "failed")
+        self.assertEqual(saved[key_b]["status"], "succeeded")
+
+    def test_declining_legacy_reset_preserves_progress_and_output(self) -> None:
+        self._write_manifest([{"url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}])
+        self.batch_dir.mkdir()
+        output_path = self.batch_dir / "video-a.mp4"
+        output_path.write_bytes(b"keep")
+        legacy_bytes = b'{"last_index": 1}'
+        self.state_file.write_bytes(legacy_bytes)
+        runner = FakeMainRunner()
+
+        with mock.patch("builtins.input", side_effect=["n"]):
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    ffmpegfyMe.main(runner=runner)
+
+        self.assertEqual(self.state_file.read_bytes(), legacy_bytes)
+        self.assertEqual(output_path.read_bytes(), b"keep")
+        self.assertEqual(runner.commands, [])
+
     def test_automatic_conflict_preserves_output_without_prompting_overwrite(self) -> None:
         item = {
             "id": "item-a",

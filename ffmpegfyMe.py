@@ -125,6 +125,22 @@ def load_item_state(state_file: Path) -> Dict[str, Dict[str, Any]]:
     return {str(key): entry for key, entry in items.items() if isinstance(entry, dict)}
 
 
+def is_legacy_progress_state(state_file: Path) -> bool:
+    """True when state contains a legacy index without per-item state."""
+    try:
+        with open(state_file) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return (
+        isinstance(data, dict)
+        and "last_index" in data
+        and "items" not in data
+        and isinstance(data["last_index"], int)
+        and not isinstance(data["last_index"], bool)
+    )
+
+
 def save_item_state(state_file: Path, items: Dict[str, Dict[str, Any]]) -> None:
     """Atomically persist per-item state via sibling temp file and os.replace."""
     state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -699,7 +715,18 @@ def main(runner: Optional[Callable] = None) -> None:
     state_file = PROGRESS_DIR / f"{batch_name}_state.json"
     item_states = load_item_state(state_file)
 
-    if state_file.exists():
+    legacy_state = state_file.exists() and is_legacy_progress_state(state_file)
+    if legacy_state:
+        print(f"\n⚠️ Legacy progress found: {state_file}")
+        print("The last_index cannot prove which outputs completed and is not valid per-item state.")
+        reset = input("Replace it with empty versioned per-item state and restart? (y/N): ").strip().lower()
+        if reset != 'y':
+            print("👋 Exiting without changing progress or outputs.")
+            sys.exit(0)
+        item_states = {}
+        save_item_state(state_file, item_states)
+        print("✅ Legacy progress replaced with empty per-item state.")
+    elif state_file.exists():
         print(f"\n📄 Found saved progress for this batch: {state_file}")
         reset = input("🔁 Do you want to reset progress and start from the beginning? (y/N): ").strip().lower()
         if reset == 'y':
