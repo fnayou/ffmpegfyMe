@@ -234,6 +234,22 @@ class DownloadStreamSetupErrorRedactionTests(TemporaryDownloadOutputTest):
         self.assertNotIn("sig=supersecretvalue", output)
 
 
+class RedactionSecretEdgeCaseTests(unittest.TestCase):
+    def test_redaction_skips_flag_without_secret_value(self) -> None:
+        command = ["ffmpeg", "-y", "-i", "https://cdn.example.com/private/v.m3u8", "-cookies"]
+        line = f"frame=1 src={command[3]}"
+        safe_line = ffmpegfyMe._redact_line(command, line)
+        self.assertNotIn("https://", safe_line)
+        self.assertIn("[REDACTED]", safe_line)
+
+    def test_redaction_handles_empty_secret_values(self) -> None:
+        command = ["ffmpeg", "-y", "-headers", "", "-i", "https://cdn.example.com/private/v.m3u8"]
+        line = f"frame=1 src={command[5]}"
+        safe_line = ffmpegfyMe._redact_line(command, line)
+        self.assertNotIn("https://", safe_line)
+        self.assertIn("[REDACTED]", safe_line)
+
+
 class DownloadSummaryRedactionTests(unittest.TestCase):
     def test_download_summary_excludes_source_urls(self) -> None:
         downloads: List[Dict[str, str]] = [

@@ -134,6 +134,10 @@ class LoadItemStateTests(unittest.TestCase):
     def test_load_missing_state_file_returns_empty_items(self) -> None:
         self.assertEqual(ffmpegfyMe.load_item_state(self.state_file), {})
 
+    def test_load_state_with_non_object_json_returns_empty_items(self) -> None:
+        self.state_file.write_text("[1, 2]", encoding="utf-8")
+        self.assertEqual(ffmpegfyMe.load_item_state(self.state_file), {})
+
     def test_save_and_load_round_trip_items(self) -> None:
         items = {
             "stable:video-1:video1.mp4": _entry("succeeded", "video1.mp4"),

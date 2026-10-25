@@ -177,8 +177,6 @@ def _is_valid_http_url(url: str) -> bool:
         port = parsed.port
     except ValueError:
         return False
-    if port is not None and not 0 <= port <= 65535:
-        return False
     host = parsed.hostname or ""
     if ":" in host:
         try:
@@ -217,8 +215,6 @@ def _is_valid_stable_id(item_id: str) -> bool:
     if any(ord(char) < 32 or 0x7F <= ord(char) <= 0x9F for char in item_id):
         return False
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", item_id):
-        return False
-    if item_id in (".", ".."):
         return False
     return True
 
@@ -667,7 +663,7 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
             print(f"⚠️ Retry attempt {attempt}/{retries}...")
             if attempt == 1:
                 time.sleep(random.uniform(1.5, 2.5))
-            elif attempt == 2:
+            else:
                 time.sleep(random.uniform(5.0, 7.0))
 
         try:
