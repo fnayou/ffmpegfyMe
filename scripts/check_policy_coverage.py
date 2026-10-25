@@ -27,12 +27,93 @@ SCOPE_FUNCTIONS = (
     "_redact_line",
     "download_with_retry",
     "_resolve_ffmpeg_inactivity_timeout",
+    "main",
 )
 
 
 def _fail(message: str) -> int:
     print(f"policy-coverage: {message}")
     return 2
+
+
+# Scope boundary: ffmpegfyMe.py intentionally ships no argparse/sys.argv CLI.
+# `main(runner)` is the deterministic test seam; no CLI features are added under
+# this coverage ticket. `_resolve_ffmpeg_inactivity_timeout` stays in scope as the
+# existing explicit-value/environment resolver.
+
+
+def _is_not_check_ffmpeg(test: ast.expr) -> bool:
+    return (
+        isinstance(test, ast.UnaryOp)
+        and isinstance(test.op, ast.Not)
+        and isinstance(test.operand, ast.Call)
+        and isinstance(test.operand.func, ast.Name)
+        and test.operand.func.id == "check_ffmpeg"
+    )
+
+
+def _is_use_saved_not_y(test: ast.expr) -> bool:
+    return (
+        isinstance(test, ast.Compare)
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.NotEq)
+        and isinstance(test.left, ast.Name)
+        and test.left.id == "use_saved"
+        and isinstance(test.comparators[0], ast.Constant)
+        and test.comparators[0].value == "y"
+    )
+
+
+def _is_mode_in_1_2(test: ast.expr) -> bool:
+    return (
+        isinstance(test, ast.Compare)
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.In)
+        and isinstance(test.comparators[0], ast.List)
+        and [elt.value for elt in test.comparators[0].elts] == ["1", "2"]
+    )
+
+
+def _is_action_eq(test: ast.expr, value: str) -> bool:
+    return (
+        isinstance(test, ast.Compare)
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.Eq)
+        and isinstance(test.left, ast.Name)
+        and test.left.id == "action"
+        and isinstance(test.comparators[0], ast.Constant)
+        and test.comparators[0].value == value
+    )
+
+
+def _is_output_path_overwrite_prompt(test: ast.expr) -> bool:
+    return (
+        isinstance(test, ast.BoolOp)
+        and isinstance(test.op, ast.And)
+        and len(test.values) == 2
+        and isinstance(test.values[0], ast.Call)
+        and isinstance(test.values[0].func, ast.Attribute)
+        and test.values[0].func.attr == "exists"
+        and isinstance(test.values[0].func.value, ast.Name)
+        and test.values[0].func.value.id == "output_path"
+        and isinstance(test.values[1], ast.Compare)
+        and len(test.values[1].ops) == 1
+        and isinstance(test.values[1].ops[0], ast.Eq)
+        and isinstance(test.values[1].left, ast.Name)
+        and test.values[1].left.id == "mode"
+        and isinstance(test.values[1].comparators[0], ast.Constant)
+        and test.values[1].comparators[0].value == "1"
+    )
+
+
+EXCLUSIONS = (
+    ("not check_ffmpeg()", _is_not_check_ffmpeg, "host FFmpeg availability integration"),
+    ("use_saved != 'y'", _is_use_saved_not_y, "interactive handoff to start-index menu"),
+    ("mode in ['1', '2']", _is_mode_in_1_2, "interactive mode input validation loop"),
+    ("action == 'q'", lambda test: _is_action_eq(test, "q"), "manual quit UI action"),
+    ("action == 's'", lambda test: _is_action_eq(test, "s"), "manual skip UI action"),
+    ("output_path.exists() and mode == '1'", _is_output_path_overwrite_prompt, "interactive overwrite prompt"),
+)
 
 
 def main(argv=None) -> int:
@@ -54,11 +135,6 @@ def main(argv=None) -> int:
         return _fail(f"expected exactly one ffmpegfyMe.py coverage report, found {len(report_files)}.")
     report = next(iter(report_files.values()))
 
-    missing_branches = report.get("missing_branches") or []
-    totals = data.get("totals") or {}
-    covered_branches = int(totals.get("covered_branches") or 0)
-    missing_arc_count = len(missing_branches)
-
     try:
         tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
     except (OSError, SyntaxError) as exc:
@@ -73,26 +149,71 @@ def main(argv=None) -> int:
     if absent_scopes:
         return _fail(f"scope function names absent from source: {', '.join(absent_scopes)}")
 
-    measured = bool(int(totals.get("num_branches") or 0) > 0) or bool(missing_branches) or bool(report.get("executed_branches"))
-    if not measured:
-        return _fail("no scoped branches were measured.")
+    scope_names = frozenset(SCOPE_FUNCTIONS)
+    excluded_lines = set()
+    absent_exclusions = []
+    for label, predicate, _reason in EXCLUSIONS:
+        found = False
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if node.name != "main":
+                continue
+            for sub_node in ast.walk(node):
+                if isinstance(sub_node, ast.If) and predicate(sub_node.test):
+                    found = True
+                    excluded_lines.add(sub_node.lineno)
+                    break
+            if found:
+                break
+        if not found:
+            absent_exclusions.append(label)
+    if absent_exclusions:
+        return _fail(f"expected exclusion condition(s) missing from source: {', '.join(absent_exclusions)}")
 
-    missing_in_scope = []
-    for arc in missing_branches:
-        start, end = int(arc[0]), int(arc[1])
+    executed_arcs = [tuple(arc) for arc in (report.get("executed_branches") or [])]
+    missing_arcs = [tuple(arc) for arc in (report.get("missing_branches") or [])]
+
+    def scope_of(line: int):
         for name in SCOPE_FUNCTIONS:
             span = spans.get(name)
-            if span and span[0] <= start <= span[1]:
-                missing_in_scope.append((start, end, name))
-                break
+            if span and span[0] <= line <= span[1]:
+                return name
+        return None
+
+    scoped_executed = []
+    for arc in executed_arcs:
+        start, end = int(arc[0]), int(arc[1])
+        name = scope_of(start)
+        if name is None or start in excluded_lines:
+            continue
+        scoped_executed.append((start, end, name))
+
+    scoped_missing = []
+    for arc in missing_arcs:
+        start, end = int(arc[0]), int(arc[1])
+        name = scope_of(start)
+        if name is None or start in excluded_lines:
+            continue
+        scoped_missing.append((start, end, name))
+
+    scoped_covered = len(scoped_executed)
+    scoped_missing_count = len(scoped_missing)
+    scoped_total = scoped_covered + scoped_missing_count
 
     function_names = ", ".join(SCOPE_FUNCTIONS)
-    print(f"policy-coverage: covered branches: {covered_branches}")
-    print(f"policy-coverage: missing arcs: {missing_arc_count}")
+    print(f"policy-coverage: scoped covered branches: {scoped_covered}")
+    print(f"policy-coverage: scoped total branches: {scoped_total}")
+    print(f"policy-coverage: scoped missing arcs: {scoped_missing_count}")
     print(f"policy-coverage: scoped functions: {function_names}")
+    for label, _predicate, reason in EXCLUSIONS:
+        print(f"policy-coverage: explicit exclusion: {label} ({reason})")
 
-    if missing_in_scope:
-        for start, end, name in sorted(missing_in_scope):
+    if scoped_total <= 0:
+        return _fail("no scoped branches were measured.")
+
+    if scoped_missing:
+        for start, end, name in sorted(scoped_missing):
             print(f"policy-coverage: missing branch arc {start}->{end} in scoped function {name}")
         return 1
 
