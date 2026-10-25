@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480" role="img" aria-labelledby="ffmpegfyMeBannerTitle">
+  <title id="ffmpegfyMeBannerTitle">ffmpegfyMe</title>
+  <rect x="0" y="0" width="1600" height="480" fill="{{BASE}}" />
+  <rect x="430" y="72" width="190" height="190" rx="22" fill="none" stroke="{{TEXT}}" stroke-width="7" />
+  <g fill="{{BASE}}">
+    <circle cx="430" cy="108" r="6" />
+    <circle cx="430" cy="167" r="6" />
+    <circle cx="430" cy="226" r="6" />
+    <circle cx="620" cy="108" r="6" />
+    <circle cx="620" cy="167" r="6" />
+    <circle cx="620" cy="226" r="6" />
+  </g>
+  <g fill="none" stroke="{{TEXT}}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 480 222 V 164 C 480 147 489 137 505 137 C 516 137 523 143 526 151 M 480 188 H 518" />
+    <path d="M 533 222 V 164 C 533 147 542 137 558 137 C 569 137 576 143 579 151 M 533 188 H 571" />
+  </g>
+  <text x="660" y="214" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="72" fill="{{TEXT}}">MPEG</text>
+  <g fill="none" stroke="{{SKY}}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 908 214 V 163 C 908 147 916 139 930 139 C 939 139 945 143 948 151 M 908 185 H 940" />
+    <path d="M 958 159 C 966 181 974 199 982 213 M 1000 159 C 992 181 986 199 982 213 C 990 229 987 241 975 249" />
+    <path d="M 1010 214 V 149 L 1044 181 L 1078 149 V 214" />
+    <path d="M 1095 190 C 1095 172 1105 160 1120 160 C 1135 160 1144 171 1144 187 H 1096 C 1096 205 1108 216 1126 216 C 1135 216 1142 213 1147 208" />
+  </g>
+  <text x="800" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="36" fill="{{TEXT}}">{{TAGLINE}}</text>
+</svg>
