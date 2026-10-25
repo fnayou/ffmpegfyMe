@@ -86,6 +86,28 @@ class ResolveRequestAuthTests(unittest.TestCase):
                         environment={"API_TOKEN": secret},
                     )
 
+    def test_malformed_cookie_env_reference_raises_value_error(self) -> None:
+        with self.assertRaises(ValueError):
+            ffmpegfyMe.resolve_request_auth(
+                {
+                    "url": "https://cdn.example.com/video1.m3u8",
+                    "output": "video1.mp4",
+                    "cookies": "Bearer ${SESSION_ID}",
+                },
+                environment={"SESSION_ID": "session=abc123"},
+            )
+
+    def test_missing_cookie_env_value_raises_value_error(self) -> None:
+        with self.assertRaises(ValueError):
+            ffmpegfyMe.resolve_request_auth(
+                {
+                    "url": "https://cdn.example.com/video1.m3u8",
+                    "output": "video1.mp4",
+                    "cookies": "${SESSION_ID}",
+                },
+                environment={},
+            )
+
     def test_cookie_value_allows_lf_but_rejects_cr_and_nul(self) -> None:
         resolved_headers, resolved_cookies = ffmpegfyMe.resolve_request_auth(
             {

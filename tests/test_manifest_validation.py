@@ -73,6 +73,12 @@ class LoadDownloadsValidationTests(unittest.TestCase):
         self.assert_load_rejected([{"url": "https://cdn.example.com/video 1.m3u8", "output": "video1.mp4"}])
         self.assert_load_rejected([{"url": "https://", "output": "video1.mp4"}])
 
+    def test_rejects_url_with_out_of_range_port(self) -> None:
+        self.assert_load_rejected([{"url": "https://cdn.example.com:99999/v.m3u8", "output": "video1.mp4"}])
+
+    def test_rejects_url_with_invalid_hostname(self) -> None:
+        self.assert_load_rejected([{"url": "https://bad_host.example.com/v.m3u8", "output": "video1.mp4"}])
+
     def test_rejects_unsafe_output_filenames(self) -> None:
         for output in [
             "",
@@ -86,6 +92,10 @@ class LoadDownloadsValidationTests(unittest.TestCase):
             if output == "video1.mp4":
                 continue
             self.assert_load_rejected([{"url": VALID_URL, "output": output}])
+
+    def test_rejects_whitespace_only_output_filename(self) -> None:
+        with self.assertRaises(SystemExit):
+            ffmpegfyMe.validate_output_filename("   ")
 
     def test_rejects_output_with_control_characters(self) -> None:
         self.assert_load_rejected([{"url": VALID_URL, "output": "video1\x00.mp4"}])
@@ -162,6 +172,19 @@ class LoadDownloadsValidationTests(unittest.TestCase):
             ])
         self.assert_load_rejected([
             {"url": VALID_URL, "output": "video1.mp4", "id": "x" * 129},
+        ])
+
+    def test_rejects_stable_id_with_control_characters(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "id": "bad\x00id"},
+        ])
+
+    def test_rejects_stable_id_of_dot_or_dotted_pair(self) -> None:
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "id": "."},
+        ])
+        self.assert_load_rejected([
+            {"url": VALID_URL, "output": "video1.mp4", "id": ".."},
         ])
 
     def test_accepts_headers_and_cookies_with_env_references(self) -> None:

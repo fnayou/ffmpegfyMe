@@ -20,6 +20,9 @@ jobs:
       - run: python -m coverage run -m unittest discover -v
       - name: Add branch coverage summary
         run: python -m coverage report --show-missing --format=markdown >> "$GITHUB_STEP_SUMMARY"
+      - run: python -m coverage json -o /tmp/ffmpegfy-coverage.json
+      - name: Policy branch coverage gate
+        run: python scripts/check_policy_coverage.py /tmp/ffmpegfy-coverage.json
 
   container_smoke:
     name: Container smoke
