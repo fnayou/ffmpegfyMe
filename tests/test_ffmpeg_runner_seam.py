@@ -393,6 +393,36 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
         self.assertEqual(popen.call_count, 1)
         sleep.assert_not_called()
 
+    def test_environment_inactivity_timeout_passed_to_download_stream_on_both_attempts(self) -> None:
+        item = _make_item()
+        fake = FakeFFmpegRunner(exit_code=0)
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "42.5"}):
+            with mock.patch("ffmpegfyMe.download_stream", side_effect=[False, True]) as mocked_download_stream:
+                with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                    self.assertTrue(
+                        ffmpegfyMe.download_with_retry(item, self.output_path, runner=fake, max_retries=2)
+                    )
+        self.assertEqual(mocked_download_stream.call_count, 2)
+        first_timeout = mocked_download_stream.call_args_list[0].kwargs.get("inactivity_timeout")
+        second_timeout = mocked_download_stream.call_args_list[1].kwargs.get("inactivity_timeout")
+        self.assertEqual(first_timeout, 42.5)
+        self.assertEqual(second_timeout, 42.5)
+        self.assertEqual(first_timeout, second_timeout)
+
+    def test_invalid_inactivity_timeout_raises_before_download_stream_called(self) -> None:
+        fake = FakeFFmpegRunner(exit_code=0)
+        for invalid_timeout in (float("nan"), float("inf"), 0, -1.0):
+            with self.subTest(inactivity_timeout=invalid_timeout):
+                with mock.patch("ffmpegfyMe.download_stream") as mocked_download_stream:
+                    with self.assertRaises(ValueError):
+                        ffmpegfyMe.download_with_retry(
+                            _make_item(),
+                            self.output_path,
+                            runner=fake,
+                            inactivity_timeout=invalid_timeout,
+                        )
+                mocked_download_stream.assert_not_called()
+
 
 class TestRunFFmpegInactivityTimeout(unittest.TestCase):
     def test_raises_ffmpeg_inactivity_timeout(self) -> None:

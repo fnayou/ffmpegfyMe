@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -132,6 +133,60 @@ class MainProgressTests(unittest.TestCase):
             saved[ffmpegfyMe.item_state_key(item)],
             {"status": "succeeded", "output": "video-a.mp4"},
         )
+
+    def test_invalid_inactivity_timeout_exits_before_ffmpeg_check_or_prompt(self) -> None:
+        runner = FakeMainRunner()
+        output = io.StringIO()
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "not-a-number"}):
+            with mock.patch.object(ffmpegfyMe, "check_ffmpeg", return_value=True) as check_ffmpeg_mock:
+                with self.assertRaises(SystemExit) as ctx:
+                    with redirect_stdout(output):
+                        ffmpegfyMe.main(runner=runner)
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("FFMPEG_INACTIVITY_TIMEOUT", output.getvalue())
+        check_ffmpeg_mock.assert_not_called()
+
+    def test_main_passes_resolved_inactivity_timeout_to_process_download_item(self) -> None:
+        item = {
+            "id": "item-a",
+            "url": "https://cdn.example.com/a.m3u8",
+            "output": "video-a.mp4",
+        }
+        self._write_manifest([item])
+        self.batch_dir.mkdir()
+        runner = FakeMainRunner()
+
+        with mock.patch.dict(os.environ, {"FFMPEG_INACTIVITY_TIMEOUT": "42.5"}):
+            with mock.patch.object(
+                ffmpegfyMe,
+                "process_download_item",
+                return_value=True,
+            ) as mocked_process:
+                self._run_main(["y", "2"], runner)
+
+        self.assertEqual(mocked_process.call_count, 1)
+        self.assertEqual(mocked_process.call_args.kwargs.get("inactivity_timeout"), 42.5)
+
+    def test_process_download_item_passes_inactivity_timeout_to_download_with_retry(self) -> None:
+        item = {
+            "id": "item-a",
+            "url": "https://cdn.example.com/a.m3u8",
+            "output": "video-a.mp4",
+        }
+        state_file = self.progress_dir / "batch_state.json"
+
+        with mock.patch.object(ffmpegfyMe, "download_with_retry", return_value=True) as mocked_download_with_retry:
+            success = ffmpegfyMe.process_download_item(
+                item,
+                self.batch_dir / "video-a.mp4",
+                state_file,
+                {},
+                inactivity_timeout=42.5,
+            )
+
+        self.assertTrue(success)
+        self.assertEqual(mocked_download_with_retry.call_count, 1)
+        self.assertEqual(mocked_download_with_retry.call_args.kwargs.get("inactivity_timeout"), 42.5)
 
     def test_failure_is_reported_after_batch_and_later_items_continue(self) -> None:
         item_a = {"url": "https://cdn.example.com/a.m3u8", "output": "video-a.mp4"}

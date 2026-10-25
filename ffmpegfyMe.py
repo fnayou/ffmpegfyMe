@@ -87,7 +87,7 @@ def item_is_complete(item_state: Optional[Dict[str, Any]], output_path: Path) ->
     )
 
 
-def process_download_item(item: Dict[str, Any], output_path: Path, state_file: Path, item_states: Dict[str, Dict[str, Any]], runner: Optional[Callable] = None, allow_overwrite: bool = False) -> bool:
+def process_download_item(item: Dict[str, Any], output_path: Path, state_file: Path, item_states: Dict[str, Dict[str, Any]], runner: Optional[Callable] = None, allow_overwrite: bool = False, inactivity_timeout: Optional[float] = None) -> bool:
     key = item_state_key(item)
 
     if item_is_complete(item_states.get(key), output_path):
@@ -102,7 +102,7 @@ def process_download_item(item: Dict[str, Any], output_path: Path, state_file: P
     item_states[key] = {"status": "pending", "output": output_path.name}
     save_item_state(state_file, item_states)
 
-    success = download_with_retry(item, output_path, runner=runner, allow_overwrite=allow_overwrite)
+    success = download_with_retry(item, output_path, runner=runner, allow_overwrite=allow_overwrite, inactivity_timeout=inactivity_timeout)
 
     item_states[key] = {"status": "succeeded" if success else "failed", "output": output_path.name}
     save_item_state(state_file, item_states)
@@ -507,6 +507,7 @@ def download_stream(
     headers: Optional[Dict[str, str]] = None,
     cookies: Optional[str] = None,
     allow_overwrite: bool = False,
+    inactivity_timeout: Optional[float] = None,
 ) -> bool:
     parsed_url = urllib.parse.urlparse(url)
     if not all([parsed_url.scheme, parsed_url.netloc]):
@@ -554,7 +555,10 @@ def download_stream(
             safe_line = _redact_line(cmd, line)
             print(f"\r{safe_line.strip()}", end='')
 
-        exit_code = (runner or run_ffmpeg)(cmd, on_output=report_progress)
+        if runner is not None:
+            exit_code = runner(cmd, on_output=report_progress)
+        else:
+            exit_code = run_ffmpeg(cmd, on_output=report_progress, inactivity_timeout=inactivity_timeout)
 
         if exit_code == 0:
             if allow_overwrite:
@@ -623,12 +627,14 @@ def display_download_summary(downloads: List[Dict[str, str]], start_index: int) 
     print()
 
 
-def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None, allow_overwrite: bool = False) -> bool:
+def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: int = 2, runner: Optional[Callable] = None, allow_overwrite: bool = False, inactivity_timeout: Optional[float] = None) -> bool:
     try:
         headers, cookies = resolve_request_auth(item)
     except ValueError:
         print("❌ Authentication configuration error. Download skipped.")
         return False
+
+    inactivity_timeout = _resolve_ffmpeg_inactivity_timeout(inactivity_timeout)
 
     retries = max(0, min(max_retries, 2))
     for attempt in range(retries + 1):
@@ -640,7 +646,7 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
                 time.sleep(random.uniform(5.0, 7.0))
 
         try:
-            success = download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite)
+            success = download_stream(item['url'], output_path, runner=runner, headers=headers, cookies=cookies, allow_overwrite=allow_overwrite, inactivity_timeout=inactivity_timeout)
         except FFmpegProcessStartError:
             print("❌ FFmpeg could not start. Download skipped.")
             return False
@@ -651,6 +657,12 @@ def download_with_retry(item: Dict[str, str], output_path: Path, max_retries: in
 
 
 def main(runner: Optional[Callable] = None) -> None:
+    try:
+        inactivity_timeout = _resolve_ffmpeg_inactivity_timeout(None)
+    except ValueError as e:
+        print(f"❌ Invalid FFmpeg inactivity timeout: {e}")
+        sys.exit(1)
+
     IN_DIR.mkdir(exist_ok=True)
     OUT_DIR.mkdir(exist_ok=True)
     PROGRESS_DIR.mkdir(exist_ok=True)
@@ -739,6 +751,7 @@ def main(runner: Optional[Callable] = None) -> None:
             item_states,
             runner=runner,
             allow_overwrite=allow_overwrite,
+            inactivity_timeout=inactivity_timeout,
         )
 
         if success:
