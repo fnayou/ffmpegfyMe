@@ -35,8 +35,7 @@ A direct local Python run needs the variables exported in the process environmen
 
 ## Privacy
 
-- The CLI redacts HTTP(S) URLs and resolved header/cookie values from displayed
-  FFmpeg output.
+- The CLI redacts HTTP(S) URLs and cookie values from displayed FFmpeg output and error lines. Header values may appear if FFmpeg echoes them.
 - Progress state stores item status/output and an identity key, not raw manifest
   URLs or credentials.
 
