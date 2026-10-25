@@ -137,6 +137,21 @@ class CheckDocsTests(unittest.TestCase):
 
         self.assertEqual(check_site(self.site_dir), [])
 
+    def test_only_first_control_is_implicitly_labelled(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page(
+                '<label>Region <input type="text"><input type="text"></label>'
+            ),
+        )
+
+        errors = check_site(self.site_dir)
+
+        self.assertEqual(
+            sum("text control has no accessible label" in error for error in errors),
+            1,
+        )
+
     def test_accepts_control_with_matching_explicit_label(self) -> None:
         self.write_page(
             "index.html",
