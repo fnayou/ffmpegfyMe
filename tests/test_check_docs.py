@@ -62,9 +62,8 @@ class CheckDocsTests(unittest.TestCase):
 
         errors = check_site(self.site_dir, "/ffmpegfyMe")
 
-        base_path_errors = [error for error in errors if "outside configured base path" in error]
         self.assertCountEqual(
-            base_path_errors,
+            errors,
             [
                 "index.html:1: internal href target is outside configured base path: /",
                 "index.html:1: internal href target is outside configured base path: /assets/site.css",
