@@ -44,6 +44,17 @@ coverage. Issue #32 defines the target scope.
 - Watch the required CI checks on the pull request and run the current CI
   checks before requesting review.
 
+## Documentation checks
+
+The public site uses the pinned Zensical dependency. Create or reuse `.venv`, then install the docs dependency and run the same checks as CI:
+
+```sh
+.venv/bin/python -m pip install -r requirements-docs.txt
+PATH=".venv/bin:$PATH" task docs:check
+```
+
+The generated-site checker validates local links and basic accessibility from files on disk. It makes no external network requests and needs no deployment credentials.
+
 ## Getting help
 
 - See [SUPPORT.md](SUPPORT.md) for how to ask questions and get help.
