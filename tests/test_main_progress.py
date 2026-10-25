@@ -352,9 +352,9 @@ class MainProgressTests(unittest.TestCase):
         self.assertEqual(attempted_urls.count(item_a["url"]), 3)
         self.assertIn(item_b["url"], attempted_urls)
         report = output.getvalue()
-        self.assertIn("❌ Failed downloads:", report)
+        self.assertIn("Failed downloads:", report)
         self.assertIn("video-a.mp4", report)
-        self.assertLess(report.index("❌ Failed downloads:"), report.index("✅ All done"))
+        self.assertLess(report.index("Failed downloads:"), report.index("All done"))
 
 
 if __name__ == "__main__":
