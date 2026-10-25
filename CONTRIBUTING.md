@@ -27,7 +27,7 @@ Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
 
 ## Tests and CI
 
-Use an isolated virtual environment:
+Use an isolated virtual environment to run tests with branch coverage:
 
 ```sh
 python3 -m venv .venv
@@ -35,6 +35,8 @@ python3 -m venv .venv
 .venv/bin/python -m coverage run -m unittest discover -v
 .venv/bin/python -m coverage report --show-missing
 ```
+
+The reported ffmpegfyMe.py percentage combines deterministic policy and integration code. It is a module-level baseline, not core-policy-only coverage. Issue #32 defines the target scope.
 
 - The Python test suite runs on PRs and pushes to main.
 - Watch the required CI checks on the pull request and run the current CI
