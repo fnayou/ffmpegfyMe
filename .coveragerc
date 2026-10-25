@@ -1,0 +1,8 @@
+[run]
+branch = True
+source =
+    ffmpegfyMe
+relative_files = True
+
+[report]
+show_missing = True
