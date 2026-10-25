@@ -254,6 +254,27 @@ class TestRealFFmpegAdapter(unittest.TestCase):
             ["frame=  5 fps=0.25 q=0.0 size=123kB time=00:00:01.0"],
         )
 
+    def test_carriage_return_delimited_progress_reaches_callback(self) -> None:
+        child = "import os, time; os.write(1, bytes([102, 114, 97, 109, 101, 61, 32, 49, 13, 102, 114, 97, 109, 101, 61, 32, 50, 10])); time.sleep(0.05)"
+        lines: List[str] = []
+        exit_code = ffmpegfyMe.run_ffmpeg(
+            [sys.executable, "-c", child],
+            on_output=lines.append,
+        )
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(lines, ["frame= 1", "frame= 2"])
+
+    def test_drains_unterminated_final_diagnostic_after_exit(self) -> None:
+        child = "import os, time; os.write(1, b'HTTP error cookies=session=secret'); time.sleep(0.05); raise SystemExit(1)"
+        command = [sys.executable, "-c", child, "-cookies", "session=secret"]
+        with mock.patch("builtins.print") as output:
+            exit_code = ffmpegfyMe.run_ffmpeg(command)
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            output.call_args_list,
+            [mock.call("HTTP error cookies=[REDACTED]", end="")],
+        )
+
 
 class TestDownloadWithRetryAuthWiring(unittest.TestCase):
     """download_with_retry must resolve environment auth before the retry loop."""

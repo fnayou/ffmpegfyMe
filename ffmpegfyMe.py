@@ -391,7 +391,7 @@ def _run_ffmpeg_with_selector(
     timed_out = False
     try:
         while True:
-            if process.poll() is not None:
+            if process.poll() is not None and not selector.select(0):
                 break
             remaining = inactivity_timeout - (time.monotonic() - start)
             if remaining <= 0:
@@ -401,8 +401,13 @@ def _run_ffmpeg_with_selector(
                 timed_out = True
                 break
             chunk = os.read(process.stdout.fileno(), 65536)
+            if not chunk:
+                process.poll()
+                if not buffer:
+                    break
+                chunk = bytes([10])
             start = time.monotonic()
-            buffer += chunk
+            buffer += chunk.replace(bytes([13]), bytes([10]))
             while b"\n" in buffer:
                 raw_line, buffer = buffer.split(b"\n", 1)
                 line = raw_line.decode("utf-8", errors="replace")
