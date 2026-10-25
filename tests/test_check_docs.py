@@ -117,6 +117,18 @@ class CheckDocsTests(unittest.TestCase):
         self.assertTrue(any("button has no accessible name" in error for error in errors))
         self.assertTrue(any("control has no accessible label" in error for error in errors))
 
+    def test_rejects_control_nested_in_label_with_mismatched_for(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page(
+                '<label for="other">Region <input id="region" type="text"></label>'
+            ),
+        )
+
+        errors = check_site(self.site_dir)
+
+        self.assertTrue(any("text control has no accessible label" in error for error in errors))
+
     def test_accepts_label_wrapped_control_without_id(self) -> None:
         self.write_page(
             "index.html",
@@ -124,6 +136,26 @@ class CheckDocsTests(unittest.TestCase):
         )
 
         self.assertEqual(check_site(self.site_dir), [])
+
+    def test_accepts_control_with_matching_explicit_label(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page(
+                '<label for="region">Region</label><input id="region" type="text">'
+            ),
+        )
+
+        self.assertEqual(check_site(self.site_dir), [])
+
+    def test_rejects_control_adjacent_to_label(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page('<label>Region</label><input type="text">'),
+        )
+
+        errors = check_site(self.site_dir)
+
+        self.assertTrue(any("text control has no accessible label" in error for error in errors))
 
     def test_rejects_paths_that_escape_site_directory(self) -> None:
         self.write_page("index.html", self.accessible_page('<a href="../../outside.html">Outside</a>'))
