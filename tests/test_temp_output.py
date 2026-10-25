@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import ffmpegfyMe
 
@@ -122,6 +123,33 @@ class TemporaryOutputTests(unittest.TestCase):
         self.assertEqual(output_path.read_bytes(), b"new-content")
         self.assertNotEqual(Path(successful_runner.commands[0][-1]), output_path)
         self.assertEqual(list(self.output_dir.iterdir()), [output_path])
+
+    def test_download_stream_forwards_inactivity_timeout_to_run_ffmpeg(self) -> None:
+        output_path = self.output_dir / "video.mp4"
+        with mock.patch.object(ffmpegfyMe, "run_ffmpeg") as mocked_run_ffmpeg:
+            mocked_run_ffmpeg.return_value = 0
+            self.assertTrue(
+                ffmpegfyMe.download_stream(
+                    "https://cdn.example.com/video.m3u8",
+                    output_path,
+                    inactivity_timeout=42.0,
+                )
+            )
+        self.assertEqual(mocked_run_ffmpeg.call_args.kwargs.get("inactivity_timeout"), 42.0)
+
+    def test_ffmpeg_inactivity_timeout_leaves_no_final_output_or_temp_file(self) -> None:
+        output_path = self.output_dir / "video.mp4"
+        with mock.patch.object(ffmpegfyMe, "run_ffmpeg") as mocked_run_ffmpeg:
+            mocked_run_ffmpeg.side_effect = ffmpegfyMe.FFmpegInactivityTimeout("FFmpeg inactivity timeout exceeded.")
+            self.assertFalse(
+                ffmpegfyMe.download_stream(
+                    "https://cdn.example.com/video.m3u8",
+                    output_path,
+                    inactivity_timeout=42.0,
+                )
+            )
+        self.assertFalse(output_path.exists())
+        self.assertEqual(list(self.output_dir.iterdir()), [])
 
 
 if __name__ == "__main__":

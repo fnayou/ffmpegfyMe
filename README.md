@@ -111,6 +111,22 @@ Credentials are redacted (shown as `[REDACTED]`) in CLI output, errors, FFmpeg d
 
 Limitation: local users/processes may inspect credential-bearing FFmpeg arguments while FFmpeg runs.
 
+### FFmpeg inactivity timeout
+
+Default inactivity timeout is 60 seconds without FFmpeg output; any output resets the inactivity timer.
+
+Set positive seconds with `FFMPEG_INACTIVITY_TIMEOUT` in the git-ignored `.env`:
+
+```bash
+FFMPEG_INACTIVITY_TIMEOUT=120
+```
+
+Invalid, non-finite, zero, and negative values produce a clear error before batch processing.
+
+A timeout counts as a failed attempt and follows the retry policy: initial attempt plus up to two retries.
+
+There is no total-download time limit by default; a download can run longer while FFmpeg continues producing output.
+
 ---
 
 ## Docker
