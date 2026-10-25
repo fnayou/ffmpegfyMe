@@ -409,6 +409,44 @@ class TestDownloadWithRetryAuthWiring(unittest.TestCase):
         self.assertEqual(second_timeout, 42.5)
         self.assertEqual(first_timeout, second_timeout)
 
+    def test_inactivity_timeout_on_attempt_retries_with_same_timeout(self) -> None:
+        item = _make_item()
+        attempt_count = 0
+
+        def fake_run_ffmpeg(
+            command: List[str],
+            on_output: Optional[Callable[[str], None]] = None,
+            inactivity_timeout: Optional[float] = None,
+        ) -> int:
+            nonlocal attempt_count
+            if attempt_count == 0:
+                attempt_count += 1
+                raise ffmpegfyMe.FFmpegInactivityTimeout("FFmpeg inactivity timeout exceeded.")
+            attempt_count += 1
+            Path(command[-1]).write_bytes(b"fake-output")
+            return 0
+
+        with mock.patch("ffmpegfyMe.run_ffmpeg", side_effect=fake_run_ffmpeg) as run_mock:
+            with mock.patch("ffmpegfyMe.time.sleep") as sleep:
+                self.assertTrue(
+                    ffmpegfyMe.download_with_retry(
+                        item,
+                        self.output_path,
+                        max_retries=2,
+                        inactivity_timeout=42.5,
+                    )
+                )
+        self.assertEqual(run_mock.call_count, 2)
+        self.assertEqual(
+            [call.kwargs.get("inactivity_timeout") for call in run_mock.call_args_list],
+            [42.5, 42.5],
+        )
+        self.assertEqual(self.output_path.read_bytes(), b"fake-output")
+        self.assertEqual(
+            sorted(path.name for path in Path(self._temp_dir.name).iterdir()),
+            ["video1.mp4"],
+        )
+
     def test_invalid_inactivity_timeout_raises_before_download_stream_called(self) -> None:
         fake = FakeFFmpegRunner(exit_code=0)
         for invalid_timeout in (float("nan"), float("inf"), 0, -1.0):
