@@ -1,0 +1,28 @@
+[project]
+site_name = "ffmpegfyMe"
+site_url = "https://fnayou.github.io/ffmpegfyMe/"
+site_description = "Interactive or batch Python wrapper around FFmpeg for downloading HTTP and HTTPS media streams, commonly HLS playlists, and copying them into MP4 or MKV containers."
+docs_dir = "site-docs"
+site_dir = "site"
+repo_url = "https://github.com/fnayou/ffmpegfyMe"
+
+nav = [
+    { "Home" = "index.md" },
+    { "Getting Started" = "getting-started.md" },
+    { "Manifest" = "manifest.md" },
+    { "Authentication" = "authentication.md" },
+    { "Reliability" = "reliability.md" },
+    { "Troubleshooting" = "troubleshooting.md" },
+    { "Community" = "community.md" },
+]
+
+extra_css = ["stylesheets/catppuccin.css"]
+
+[project.theme]
+language = "en"
+palette = [
+    { scheme = "macchiato", primary = "custom", accent = "custom" },
+]
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
