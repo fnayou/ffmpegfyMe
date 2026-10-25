@@ -27,7 +27,15 @@ Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
 
 ## Tests and CI
 
-- Run the Python test suite locally with `python3 -m unittest discover -v`.
+Use an isolated virtual environment:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m coverage run -m unittest discover -v
+.venv/bin/python -m coverage report --show-missing
+```
+
 - The Python test suite runs on PRs and pushes to main.
 - Watch the required CI checks on the pull request and run the current CI
   checks before requesting review.

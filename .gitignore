@@ -14,6 +14,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.coverage
+.venv/
 
 # Editor/OS metadata
 .DS_Store
