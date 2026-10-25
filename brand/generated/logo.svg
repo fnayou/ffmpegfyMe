@@ -1,23 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 240" role="img" aria-labelledby="ffmpegfyMeLogoTitle">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 240" width="1080" height="240" role="img" aria-labelledby="ffmpegfyMeLogoTitle">
   <title id="ffmpegfyMeLogoTitle">ffmpegfyMe</title>
-  <rect x="10" y="10" width="220" height="220" rx="24" fill="none" stroke="#cad3f5" stroke-width="8" />
-  <g fill="#24273a">
-    <circle cx="10" cy="50" r="7" />
-    <circle cx="10" cy="120" r="7" />
-    <circle cx="10" cy="190" r="7" />
-    <circle cx="230" cy="50" r="7" />
-    <circle cx="230" cy="120" r="7" />
-    <circle cx="230" cy="190" r="7" />
-  </g>
-  <g fill="none" stroke="#cad3f5" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 69 179 V 112 C 69 93 79 82 97 82 C 109 82 117 88 121 99 M 69 143 H 112" />
-    <path d="M 127 179 V 112 C 127 93 137 82 155 82 C 167 82 175 88 179 99 M 127 143 H 170" />
-  </g>
-  <text x="270" y="172" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="76" fill="#cad3f5">MPEG</text>
-  <g fill="none" stroke="#91d7e3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 535 172 V 116 C 535 98 544 89 559 89 C 568 89 575 94 578 102 M 535 140 H 571" />
-    <path d="M 588 111 C 596 132 604 154 612 171 M 636 111 C 628 132 620 154 612 171 C 620 188 617 202 604 211" />
-    <path d="M 648 172 V 101 L 685 136 L 722 101 V 172" />
-    <path d="M 742 145 C 742 126 753 113 769 113 C 785 113 795 125 795 142 H 743 C 743 162 756 174 775 174 C 785 174 792 171 798 165" />
+  <rect x="0" y="0" width="1080" height="240" rx="32" fill="#24273a" />
+  <g transform="translate(30 0)">
+    <!-- Rounded film-strip frame with side sprocket holes -->
+    <rect x="28" y="24" width="192" height="192" rx="30" fill="#181926" stroke="#494d64" stroke-width="4" />
+    <rect x="58" y="36" width="132" height="168" rx="14" fill="#1e2030" stroke="#363a4f" stroke-width="3" />
+    <g fill="#363a4f">
+      <rect x="37" y="46" width="12" height="18" rx="4" />
+      <rect x="37" y="87" width="12" height="18" rx="4" />
+      <rect x="37" y="128" width="12" height="18" rx="4" />
+      <rect x="37" y="169" width="12" height="18" rx="4" />
+      <rect x="199" y="46" width="12" height="18" rx="4" />
+      <rect x="199" y="87" width="12" height="18" rx="4" />
+      <rect x="199" y="128" width="12" height="18" rx="4" />
+      <rect x="199" y="169" width="12" height="18" rx="4" />
+    </g>
+    <!-- Handwritten ff ligature: slanted pen strokes sharing one crossbar -->
+    <g fill="none" stroke="#cad3f5" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 127 76 C 124 62 108 57 101 69 C 99 73 98 78 97 84 L 87 170 C 85 187 77 196 66 193" />
+      <path d="M 175 76 C 172 62 156 57 149 69 C 147 73 146 78 145 84 L 135 170 C 133 187 125 196 114 193" />
+      <path d="M 76 117 C 108 113 140 110 171 107" />
+    </g>
+    <!-- MPEG: geometric caps -->
+    <g fill="none" stroke="#cad3f5" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 268 162 V 78 L 308 132 L 348 78 V 162" />
+      <path d="M 374 162 V 78 H 410 C 434 78 446 92 446 112 C 446 132 434 146 410 146 H 374" />
+      <path d="M 536 78 H 476 V 162 H 536 M 476 120 H 528" />
+      <path d="M 642 96 C 634 84 620 78 604 78 C 580 78 562 96 562 120 C 562 144 580 162 604 162 C 628 162 646 146 646 122 H 610" />
+    </g>
+    <!-- fyMe: monoline sky accent -->
+    <g fill="none" stroke="#91d7e3" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 698 162 V 100 C 698 84 706 76 720 76 C 728 76 734 79 737 84 M 684 112 H 724" />
+      <path d="M 748 108 L 774 160 M 800 108 L 766 176 C 760 188 754 194 742 194" />
+      <path d="M 824 162 V 78 L 864 132 L 904 78 V 162" />
+      <path d="M 932 136 H 985 C 985 120 974 108 958 108 C 942 108 931 120 931 135 C 931 151 942 162 959 162 C 969 162 977 158 983 152" />
+    </g>
   </g>
 </svg>
