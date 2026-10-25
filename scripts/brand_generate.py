@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -21,7 +22,8 @@ BRAND_DATA_FILE = DATA_DIR / "brand.json"
 FACTS_DATA_FILE = DATA_DIR / "facts.json"
 
 SOURCE_NAMES = ("favicon.svg", "logo.svg", "readme-banner.svg", "social-preview.svg")
-GENERATED_NAMES = ("favicon.svg", "logo.svg", "readme-banner.svg", "social-preview.png", "social-preview.svg")
+GENERATED_NAMES = ("favicon.svg", "logo.svg", "readme-banner.svg", "social-preview.png", "social-preview.svg", "social-preview.json")
+SOCIAL_PREVIEW_METADATA = "social-preview.json"
 
 SOCIAL_PREVIEW_WIDTH = 1280
 SOCIAL_PREVIEW_HEIGHT = 640
@@ -136,9 +138,22 @@ def render_social_preview_png(svg_text: str) -> bytes:
         return png_path.read_bytes()
 
 
+def rsvg_convert_version() -> str:
+    try:
+        completed = subprocess.run(["rsvg-convert", "--version"], capture_output=True, check=False)
+    except FileNotFoundError as error:
+        raise BrandError("rsvg-convert is not installed; install librsvg2-bin to generate brand PNG assets") from error
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise BrandError(f"rsvg-convert failed to report its version: {detail}")
+    return completed.stdout.decode("utf-8", errors="replace").strip()
+
+
 def validate_social_preview_png(png_bytes: bytes) -> list[str]:
     if png_bytes[:8] != PNG_SIGNATURE:
         return ["social preview PNG must start with a PNG signature"]
+    if len(png_bytes) < 24:
+        return ["social preview PNG must include an IHDR chunk"]
     width = int.from_bytes(png_bytes[16:20], "big")
     height = int.from_bytes(png_bytes[20:24], "big")
     errors: list[str] = []
@@ -161,12 +176,18 @@ def render_generated_assets(palette: dict, facts: dict) -> dict[str, bytes]:
     png_errors = validate_social_preview_png(png_bytes)
     if png_errors:
         raise BrandError("social preview PNG validation failed: " + "; ".join(png_errors))
+    metadata = {
+        "source_sha256": hashlib.sha256(social_preview_svg.encode("utf-8")).hexdigest(),
+        "png_sha256": hashlib.sha256(png_bytes).hexdigest(),
+        "rsvg_convert_version": rsvg_convert_version(),
+    }
     return {
         "favicon.svg": favicon_svg.encode("utf-8"),
         "logo.svg": logo_svg.encode("utf-8"),
         "readme-banner.svg": readme_banner_svg.encode("utf-8"),
         "social-preview.svg": social_preview_svg.encode("utf-8"),
         "social-preview.png": png_bytes,
+        SOCIAL_PREVIEW_METADATA: (json.dumps(metadata, indent=2, sort_keys=True) + "\n").encode("utf-8"),
     }
 
 
@@ -202,7 +223,46 @@ def generate_brand_assets(root: Path) -> dict[str, bytes]:
 
 
 def check_brand_assets(root: Path) -> list[str]:
-    return check_generated_assets(root, generate_brand_assets(root))
+    palette = _read_json(root / "brand" / "data" / "brand.json")
+    facts = _read_json(root / "brand" / "data" / "facts.json")
+    errors = validate_palette(palette) + validate_facts(facts)
+    if errors:
+        raise BrandError("brand data validation failed: " + "; ".join(errors))
+    svg_assets = {
+        "favicon.svg": render_favicon_svg(palette, facts).encode("utf-8"),
+        "logo.svg": render_logo_svg(palette, facts).encode("utf-8"),
+        "readme-banner.svg": render_readme_banner_svg(palette, facts).encode("utf-8"),
+        "social-preview.svg": render_social_preview_svg(palette, facts).encode("utf-8"),
+    }
+    errors = check_generated_assets(root, svg_assets)
+    generated_dir = root / "brand" / "generated"
+    png_path = generated_dir / "social-preview.png"
+    metadata_path = generated_dir / SOCIAL_PREVIEW_METADATA
+    if not png_path.is_file():
+        errors.append("missing generated asset: brand/generated/social-preview.png")
+        return errors
+    if not metadata_path.is_file():
+        errors.append("missing generated asset: brand/generated/social-preview.json")
+        return errors
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        errors.append("invalid generated metadata: brand/generated/social-preview.json")
+        return errors
+    if not isinstance(metadata, dict):
+        errors.append("invalid generated metadata: brand/generated/social-preview.json")
+        return errors
+    png_bytes = png_path.read_bytes()
+    source_hash = hashlib.sha256(svg_assets["social-preview.svg"]).hexdigest()
+    png_hash = hashlib.sha256(png_bytes).hexdigest()
+    if metadata.get("source_sha256") != source_hash:
+        errors.append("stale generated metadata: brand/generated/social-preview.json source_sha256")
+    if metadata.get("png_sha256") != png_hash:
+        errors.append("stale generated metadata: brand/generated/social-preview.json png_sha256")
+    if not isinstance(metadata.get("rsvg_convert_version"), str) or not metadata["rsvg_convert_version"].strip():
+        errors.append("invalid generated metadata: brand/generated/social-preview.json rsvg_convert_version")
+    errors.extend(validate_social_preview_png(png_bytes))
+    return errors
 
 
 def write_brand_assets(root: Path) -> None:
@@ -223,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
             write_generated_assets(ROOT_DIR, assets)
             for filename in sorted(assets):
                 content = assets[filename]
-                detail = f"{len(content)} bytes" if filename.endswith(".png") else "SVG"
+                detail = f"{len(content)} bytes" if filename.endswith(".png") else "JSON" if filename.endswith(".json") else "SVG"
                 print(f"generated brand asset: brand/generated/{filename} ({detail})")
         else:
             errors = check_brand_assets(ROOT_DIR)

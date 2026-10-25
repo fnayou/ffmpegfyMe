@@ -1,0 +1,5 @@
+{
+  "png_sha256": "d6400f336ff5072e80179a321d44bf83e0a65b878d25614130f922d390d1b1a5",
+  "rsvg_convert_version": "rsvg-convert version 2.63.4\n\nlibraries used:\n  cairo 1.18.6\n  pango 1.58.2\n  harfbuzz 15.0.0\n  fontconfig 2.18.3",
+  "source_sha256": "f141b5ecc395acec896291398958e7078ff61a86f743adce69a041d16ee967e2"
+}
