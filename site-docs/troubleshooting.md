@@ -14,7 +14,7 @@ Check JSON validity, required fields, HTTP(S) URLs, output extension, and filena
 
 ## Missing auth environment values
 
-Check that required `${ENV_NAME}` references are exported or present in `.env`.
+For Compose, check that required `${ENV_NAME}` values are present in `.env`. For direct local Python runs, export each variable in the shell before starting the app; local Python use does not load `.env`.
 
 ## Output conflicts
 

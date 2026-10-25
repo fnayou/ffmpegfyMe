@@ -42,7 +42,7 @@ A direct local Python run needs the variables exported in the process environmen
 
 ## Caveats
 
-- Sensitive signed URLs may expose credentials in logs or state; handle with care.
+- Signed URLs remain in plaintext in the manifest file. Protect that file and avoid sharing or committing URLs that contain credentials.
 - Local processes may inspect credential-bearing FFmpeg arguments while FFmpeg runs.
 
 See [Reliability](reliability.md) for state and retries.
