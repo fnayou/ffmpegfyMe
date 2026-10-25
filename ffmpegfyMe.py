@@ -402,7 +402,15 @@ def _run_ffmpeg_with_selector(
                 break
             chunk = os.read(process.stdout.fileno(), 65536)
             if not chunk:
-                process.poll()
+                remaining = inactivity_timeout - (time.monotonic() - start)
+                if remaining <= 0:
+                    timed_out = True
+                    break
+                try:
+                    process.wait(timeout=remaining)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+                    break
                 if not buffer:
                     break
                 chunk = bytes([10])

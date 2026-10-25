@@ -265,7 +265,7 @@ class TestRealFFmpegAdapter(unittest.TestCase):
         self.assertEqual(lines, ["frame= 1", "frame= 2"])
 
     def test_drains_unterminated_final_diagnostic_after_exit(self) -> None:
-        child = "import os, time; os.write(1, b'HTTP error cookies=session=secret'); time.sleep(0.05); raise SystemExit(1)"
+        child = "import os, time; os.write(1, b'HTTP error cookies=session=secret'); os.close(1); time.sleep(1); raise SystemExit(1)"
         command = [sys.executable, "-c", child, "-cookies", "session=secret"]
         with mock.patch("builtins.print") as output:
             exit_code = ffmpegfyMe.run_ffmpeg(command)
