@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="ffmpegfyMeFaviconTitle">
+  <title id="ffmpegfyMeFaviconTitle">ffmpegfyMe</title>
+  <rect x="8" y="8" width="112" height="112" rx="16" fill="none" stroke="#cad3f5" stroke-width="4" />
+  <g fill="#24273a">
+    <circle cx="8" cy="34" r="3.5" />
+    <circle cx="8" cy="64" r="3.5" />
+    <circle cx="8" cy="94" r="3.5" />
+    <circle cx="120" cy="34" r="3.5" />
+    <circle cx="120" cy="64" r="3.5" />
+    <circle cx="120" cy="94" r="3.5" />
+  </g>
+  <g fill="none" stroke="#cad3f5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 34 96 V 62 C 34 49 39 43 47 43 C 53 43 57 47 58 54 M 34 75 H 53" />
+    <path d="M 58 96 V 62 C 58 49 63 43 71 43 C 77 43 81 47 82 54 M 58 75 H 77" />
+  </g>
+  <g fill="none" stroke="#91d7e3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 80 37 V 21 C 80 15 83 12 88 12 C 92 12 94 14 95 17 M 80 27 H 91" />
+    <path d="M 96 20 L 104 38 C 106 43 105 47 101 50 M 96 20 L 106 33" />
+  </g>
+</svg>

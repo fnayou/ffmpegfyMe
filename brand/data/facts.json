@@ -1,0 +1,14 @@
+{
+  "output_formats": [
+    "MP4",
+    "MKV"
+  ],
+  "max_attempts_per_item": 3,
+  "default_inactivity_timeout_seconds": 60,
+  "social_pillars": [
+    "Authenticated HTTP/HLS",
+    "MP4/MKV stream copy",
+    "Resumable batches with retries"
+  ],
+  "readme_banner_tagline": "Download HTTP/HLS streams as MP4 or MKV — no transcoding."
+}

@@ -1,0 +1,29 @@
+name: Brand
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - "brand/**"
+      - "scripts/brand_generate.py"
+      - "tests/test_brand_generate.py"
+      - "Taskfile.yml"
+      - ".github/workflows/brand.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  brand:
+    name: Brand assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Install librsvg2-bin
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - run: python scripts/brand_generate.py --check

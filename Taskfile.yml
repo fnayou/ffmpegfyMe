@@ -28,3 +28,13 @@ tasks:
       - zensical build --strict
       - python -m unittest tests.test_check_docs -v
       - python scripts/check_docs.py site
+
+  brand:generate:
+    desc: Generate ffmpegfyMe brand assets
+    cmds:
+      - python3 scripts/brand_generate.py --generate
+
+  brand:check:
+    desc: Check ffmpegfyMe brand assets are current
+    cmds:
+      - python3 scripts/brand_generate.py --check
