@@ -6,7 +6,8 @@ import unittest
 from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.error import HTTPError
 from urllib.parse import urljoin
 from urllib.request import ProxyHandler, Request, build_opener
 from unittest import mock
@@ -36,6 +37,9 @@ class LocalHLSFixtureServer(ThreadingHTTPServer):
     def __init__(self, address: Any, handler: Any) -> None:
         super().__init__(address, handler)
         self.request_log: List[Tuple[str, bool]] = []
+        self.redirects: Dict[str, str] = {}
+        self.status_overrides: Dict[str, int] = {}
+        self.truncated_paths: Set[str] = set()
 
     def record_request(self, path: str, authenticated: bool) -> None:
         self.request_log.append((path, authenticated))
@@ -64,6 +68,27 @@ class LocalHLSFixtureHandler(BaseHTTPRequestHandler):
         self.server.record_request(self.path, authenticated)
         if not authenticated:
             self._respond(401, "text/plain", b"unauthorized")
+            return
+        redirect_location = self.server.redirects.get(self.path)
+        if redirect_location:
+            self.send_response(302)
+            self.send_header("Location", redirect_location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        status = self.server.status_overrides.get(self.path)
+        if status is not None:
+            self._respond(status, "text/plain", b"fixture failure")
+            return
+        if self.path in self.server.truncated_paths:
+            full_body = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            truncated_body = b"\x00\x00\x00\x00"
+            self.send_response(200)
+            self.send_header("Content-Type", "video/mp2t")
+            self.send_header("Content-Length", str(len(full_body)))
+            self.end_headers()
+            self.wfile.write(truncated_body)
+            self.close_connection = True
             return
         if self.path == PLAYLIST_PATH:
             self._respond(200, "application/vnd.apple.mpegurl", PLAYLIST_BODY.encode("utf-8"))
@@ -152,6 +177,9 @@ class LocalHLSFakeFFmpegRunner:
         try:
             with opener.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 return response.status, response.read().decode("utf-8")
+        except HTTPError as error:
+            error.close()
+            return error.code, None
         except Exception:
             return 500, None
 
@@ -205,6 +233,129 @@ class LocalHLSFixtureTests(unittest.TestCase):
         )
         output = buffer.getvalue()
         self.assertIn("frame=2", output)
+        self.assertNotIn(self.base_url, output)
+        self.assertNotIn(FAKE_TOKEN, output)
+        self.assertNotIn(FAKE_COOKIE, output)
+
+    def test_playlist_redirect_keeps_local_auth(self) -> None:
+        """Check redirected playlist URL keeps local auth flow working."""
+        self.server.redirects = {"/playlist-redirect.m3u8": PLAYLIST_PATH}
+        auth_item = self._auth_item()
+        auth_item["url"] = f"{self.base_url}/playlist-redirect.m3u8"
+        fake = LocalHLSFakeFFmpegRunner()
+        with mock.patch.dict(os.environ, {"API_TOKEN": FAKE_TOKEN, "SESSION_ID": FAKE_COOKIE}):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with mock.patch("ffmpegfyMe.time.sleep"):
+                    success = ffmpegfyMe.download_with_retry(auth_item, self.output_path, runner=fake)
+        self.assertTrue(success)
+        self.assertEqual(len(fake.commands), 1)
+        self.assertEqual(fake.playlist_status, 200)
+        self.assertEqual(fake.segment_status, 200)
+        self.assertEqual(
+            self.server.request_log,
+            [
+                ("/playlist-redirect.m3u8", True),
+                (PLAYLIST_PATH, True),
+                (SEGMENT_PATH, True),
+            ],
+        )
+        self.assertEqual(self.output_path.read_bytes(), b"fixture-output")
+
+    def test_playlist_403_retries_and_cleans_partial_output(self) -> None:
+        """Playlist 403 should be retried and partial output cleaned up."""
+        self.server.status_overrides = {PLAYLIST_PATH: 403}
+
+        class PartialRunner(LocalHLSFakeFFmpegRunner):
+            def __call__(self, command: List[str], on_output=None) -> int:
+                result = super().__call__(command, on_output=on_output)
+                if result != 0:
+                    Path(command[-1]).write_bytes(b"partial")
+                return result
+
+        fake = PartialRunner()
+        with mock.patch.dict(os.environ, {"API_TOKEN": FAKE_TOKEN, "SESSION_ID": FAKE_COOKIE}):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with mock.patch("ffmpegfyMe.time.sleep"):
+                    success = ffmpegfyMe.download_with_retry(self._auth_item(), self.output_path, max_retries=2, runner=fake)
+
+        self.assertFalse(success)
+        self.assertEqual(len(fake.commands), 3)
+        self.assertEqual(fake.playlist_status, 403)
+        self.assertEqual(self.server.request_log, [(PLAYLIST_PATH, True)] * 3)
+        self.assertEqual(list(Path(self._tmp_dir.name).iterdir()), [])
+        self.assertFalse(self.output_path.exists())
+        self.assertTrue(
+            all(cmd[cmd.index("-i") + 1].startswith(self.base_url) for cmd in fake.commands),
+        )
+        output = buffer.getvalue()
+        self.assertNotIn(self.base_url, output)
+        self.assertNotIn(FAKE_TOKEN, output)
+        self.assertNotIn(FAKE_COOKIE, output)
+
+    def test_segment_503_retries_and_cleans_partial_output(self) -> None:
+        """Segment 503 should be retried and partial output cleaned up."""
+        self.server.status_overrides = {SEGMENT_PATH: 503}
+
+        class PartialRunner(LocalHLSFakeFFmpegRunner):
+            def __call__(self, command: List[str], on_output=None) -> int:
+                result = super().__call__(command, on_output=on_output)
+                if result != 0:
+                    Path(command[-1]).write_bytes(b"partial")
+                return result
+
+        fake = PartialRunner()
+        with mock.patch.dict(os.environ, {"API_TOKEN": FAKE_TOKEN, "SESSION_ID": FAKE_COOKIE}):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with mock.patch("ffmpegfyMe.time.sleep"):
+                    success = ffmpegfyMe.download_with_retry(self._auth_item(), self.output_path, max_retries=2, runner=fake)
+
+        self.assertFalse(success)
+        self.assertEqual(len(fake.commands), 3)
+        self.assertEqual(fake.playlist_status, 200)
+        self.assertEqual(fake.segment_status, 503)
+        self.assertEqual(self.server.request_log, [(PLAYLIST_PATH, True), (SEGMENT_PATH, True)] * 3)
+        self.assertEqual(list(Path(self._tmp_dir.name).iterdir()), [])
+        self.assertFalse(self.output_path.exists())
+        self.assertTrue(
+            all(cmd[cmd.index("-i") + 1].startswith(self.base_url) for cmd in fake.commands),
+        )
+        output = buffer.getvalue()
+        self.assertNotIn(self.base_url, output)
+        self.assertNotIn(FAKE_TOKEN, output)
+        self.assertNotIn(FAKE_COOKIE, output)
+
+    def test_truncated_segment_retries_and_cleans_partial_output(self) -> None:
+        """Truncated segment should be retried and partial output cleaned up."""
+        self.server.truncated_paths = {SEGMENT_PATH}
+
+        class PartialRunner(LocalHLSFakeFFmpegRunner):
+            def __call__(self, command: List[str], on_output=None) -> int:
+                result = super().__call__(command, on_output=on_output)
+                if result != 0:
+                    Path(command[-1]).write_bytes(b"partial")
+                return result
+
+        fake = PartialRunner()
+        with mock.patch.dict(os.environ, {"API_TOKEN": FAKE_TOKEN, "SESSION_ID": FAKE_COOKIE}):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                with mock.patch("ffmpegfyMe.time.sleep"):
+                    success = ffmpegfyMe.download_with_retry(self._auth_item(), self.output_path, max_retries=2, runner=fake)
+
+        self.assertFalse(success)
+        self.assertEqual(len(fake.commands), 3)
+        self.assertEqual(fake.playlist_status, 200)
+        self.assertEqual(fake.segment_status, 500)
+        self.assertEqual(self.server.request_log, [(PLAYLIST_PATH, True), (SEGMENT_PATH, True)] * 3)
+        self.assertEqual(list(Path(self._tmp_dir.name).iterdir()), [])
+        self.assertFalse(self.output_path.exists())
+        self.assertTrue(
+            all(cmd[cmd.index("-i") + 1].startswith(self.base_url) for cmd in fake.commands),
+        )
+        output = buffer.getvalue()
         self.assertNotIn(self.base_url, output)
         self.assertNotIn(FAKE_TOKEN, output)
         self.assertNotIn(FAKE_COOKIE, output)
