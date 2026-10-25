@@ -19,9 +19,9 @@ commonly HLS playlists, and saving them into local media files.
 
 ## Workflow at a glance
 
-1. Create a manifest at `in/stream-list.json`.
-2. Run ffmpegfyMe.
-3. Finished files appear in `out/`.
+1. Add one or more JSON manifests to `in/`.
+2. Run ffmpegfyMe and choose a manifest when prompted.
+3. Choose an output directory or accept the `out/<manifest-name>/` default.
 
 See [Getting Started](getting-started.md) for setup and
 [Manifest](manifest.md) for the input format.

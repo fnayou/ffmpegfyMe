@@ -2,9 +2,9 @@
 
 ## Retries
 
-The app makes an initial attempt plus up to two retries, with short backoff delays.
+The app makes an initial attempt plus up to two retries. Backoff waits are 1.5–2.5 seconds before the first retry and 5–7 seconds before the second.
 
-A timed-out attempt is retried under the same policy as other failures.
+Inactivity timeouts and other FFmpeg download failures use this retry policy. Authentication configuration errors, FFmpeg process-start errors, and failures to move a completed output into place are not retried.
 
 ## Inactivity timeout
 

@@ -12,7 +12,7 @@ The project provides a Compose service named `ffmpegfy-me`.
 
 ```bash
 docker compose build
-docker compose up
+docker compose run --rm ffmpegfy-me
 ```
 
 The service mounts `in/`, `out/`, and `progress/`, and optionally loads a
@@ -31,9 +31,9 @@ FFmpeg must be on `PATH`.
 
 ## Input, output, and progress
 
-- Place the JSON manifest at `in/stream-list.json`.
-- Outputs are written to `out/`.
-- Per-item progress state is kept under `progress/`.
+- Place one or more JSON manifest files in `in/`. The app lists `in/*.json` and prompts you to choose one.
+- The app prompts for an output directory. Its default is `out/<manifest-name>/`, where `<manifest-name>` is the selected file name without `.json`.
+- Per-item progress is stored in `progress/<manifest-name>_state.json`.
 
 ## Interactive prompts
 
