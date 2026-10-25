@@ -46,7 +46,9 @@ coverage. Issue #32 defines the target scope.
 
 ## Documentation checks
 
-The public site uses the pinned Zensical dependency. Create or reuse `.venv`, then install the docs dependency and run the same checks as CI:
+The documentation checks require Python 3.11 or newer because the checker
+uses `tomllib`. The public site uses the pinned Zensical dependency. Create or
+reuse `.venv`, then install the docs dependency and run the same checks as CI:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-docs.txt

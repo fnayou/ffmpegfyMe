@@ -44,6 +44,33 @@ class CheckDocsTests(unittest.TestCase):
 
         self.assertEqual(check_site(self.site_dir), [])
 
+    def test_rejects_root_relative_links_outside_configured_base_path(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page(
+                '<link rel="stylesheet" href="/assets/site.css">'
+                '<a href="/">Root</a>'
+                '<a href="/ffmpegfyMe/guide/">Guide</a>'
+            ),
+        )
+        self.write_page("assets/site.css", "body {}")
+        self.write_page(
+            "guide/index.html",
+            '<!doctype html><html lang="en"><head><title>Guide</title></head>'
+            '<body><main><h1>Guide</h1></main></body></html>',
+        )
+
+        errors = check_site(self.site_dir, "/ffmpegfyMe")
+
+        base_path_errors = [error for error in errors if "outside configured base path" in error]
+        self.assertCountEqual(
+            base_path_errors,
+            [
+                "index.html:1: internal href target is outside configured base path: /",
+                "index.html:1: internal href target is outside configured base path: /assets/site.css",
+            ],
+        )
+
     def test_rejects_missing_internal_target(self) -> None:
         self.write_page("index.html", self.accessible_page('<a href="missing/">Missing</a>'))
 
@@ -90,6 +117,14 @@ class CheckDocsTests(unittest.TestCase):
         self.assertTrue(any("missing alt text" in error for error in errors))
         self.assertTrue(any("button has no accessible name" in error for error in errors))
         self.assertTrue(any("control has no accessible label" in error for error in errors))
+
+    def test_accepts_label_wrapped_control_without_id(self) -> None:
+        self.write_page(
+            "index.html",
+            self.accessible_page('<label>Region <input type="text"></label>'),
+        )
+
+        self.assertEqual(check_site(self.site_dir), [])
 
     def test_rejects_paths_that_escape_site_directory(self) -> None:
         self.write_page("index.html", self.accessible_page('<a href="../../outside.html">Outside</a>'))
