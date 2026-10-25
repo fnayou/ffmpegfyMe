@@ -25,7 +25,7 @@ class PageParser(HTMLParser):
         self.main_count = 0
         self.labelled_ids: set[str] = set()
         self.controls: list[tuple[int, dict[str, str], bool]] = []
-        self.label_depth = 0
+        self.label_stack: list[str | None] = []
         self.interactive: list[dict[str, object]] = []
 
     def handle_starttag(self, tag: str, attributes: list[tuple[str, str | None]]) -> None:
@@ -46,11 +46,10 @@ class PageParser(HTMLParser):
             self.ids.add(attrs["name"])
 
         if tag == "label":
-            self.label_depth += 1
-            if attrs.get("for"):
-                self.labelled_ids.add(attrs["for"])
-        if self.label_depth and tag in {"input", "select", "textarea"} and attrs.get("id"):
-            self.labelled_ids.add(attrs["id"])
+            label_for = attrs.get("for") if "for" in attrs else None
+            self.label_stack.append(label_for)
+            if label_for:
+                self.labelled_ids.add(label_for)
 
         if tag == "img" and "alt" not in attrs:
             self.errors.append(f"{self.relative_path}:{line}: image is missing alt text")
@@ -59,7 +58,8 @@ class PageParser(HTMLParser):
             hidden = "hidden" in attrs or attrs.get("aria-hidden", "").lower() == "true"
             hidden_input = tag == "input" and attrs.get("type", "text").lower() == "hidden"
             if not hidden and not hidden_input:
-                self.controls.append((line, attrs, self.label_depth > 0))
+                wrapped_by_label = bool(self.label_stack and self.label_stack[-1] is None)
+                self.controls.append((line, attrs, wrapped_by_label))
 
         if tag in {"a", "link", "script", "img"}:
             for attribute in ("href", "src"):
@@ -85,8 +85,8 @@ class PageParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "title" and self.title_depth:
             self.title_depth -= 1
-        if tag == "label" and self.label_depth:
-            self.label_depth -= 1
+        if tag == "label" and self.label_stack:
+            self.label_stack.pop()
         if tag in {"a", "button"}:
             for index in range(len(self.interactive) - 1, -1, -1):
                 if self.interactive[index]["tag"] == tag:
