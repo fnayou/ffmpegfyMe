@@ -21,3 +21,10 @@ tasks:
     desc: 🎬 Run the ffmpegfyMe interactive downloader
     cmds:
       - docker compose run --rm ffmpegfy-me
+
+  docs:check:
+    desc: 📚 Build and check public documentation
+    cmds:
+      - zensical build --strict
+      - python -m unittest tests.test_check_docs -v
+      - python scripts/check_docs.py site
