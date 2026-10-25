@@ -1,25 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="ffmpegfyMeSocialPreviewTitle">
   <title id="ffmpegfyMeSocialPreviewTitle">ffmpegfyMe</title>
   <rect x="0" y="0" width="1280" height="640" fill="{{BASE}}" />
-  <rect x="90" y="70" width="190" height="190" rx="22" fill="none" stroke="{{TEXT}}" stroke-width="7" />
-  <g fill="{{BASE}}">
-    <circle cx="90" cy="106" r="6" />
-    <circle cx="90" cy="165" r="6" />
-    <circle cx="90" cy="224" r="6" />
-    <circle cx="280" cy="106" r="6" />
-    <circle cx="280" cy="165" r="6" />
-    <circle cx="280" cy="224" r="6" />
-  </g>
-  <g fill="none" stroke="{{TEXT}}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 140 220 V 162 C 140 145 149 135 165 135 C 176 135 183 141 186 149 M 140 186 H 178" />
-    <path d="M 193 220 V 162 C 193 145 202 135 218 135 C 229 135 236 141 239 149 M 193 186 H 231" />
-  </g>
-  <text x="320" y="211" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="72" fill="{{TEXT}}">MPEG</text>
-  <g fill="none" stroke="{{SKY}}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 568 211 V 160 C 568 144 576 136 590 136 C 599 136 605 140 608 148 M 568 182 H 600" />
-    <path d="M 616 156 C 624 176 630 194 637 210 M 658 156 C 651 176 644 194 637 210 C 645 226 642 238 629 246" />
-    <path d="M 670 211 V 146 L 704 178 L 738 146 V 211" />
-    <path d="M 755 187 C 755 169 765 157 780 157 C 795 157 804 168 804 184 H 756 C 756 202 768 213 786 213 C 795 213 802 210 807 205" />
+  <!-- Wordmark, same geometry as logo.svg -->
+  <g transform="translate(62 46)">
+    <rect x="28" y="24" width="192" height="192" rx="30" fill="{{CRUST}}" stroke="{{SURFACE1}}" stroke-width="4" />
+    <rect x="58" y="36" width="132" height="168" rx="14" fill="{{MANTLE}}" stroke="{{SURFACE0}}" stroke-width="3" />
+    <g fill="{{SURFACE0}}">
+      <rect x="37" y="46" width="12" height="18" rx="4" />
+      <rect x="37" y="87" width="12" height="18" rx="4" />
+      <rect x="37" y="128" width="12" height="18" rx="4" />
+      <rect x="37" y="169" width="12" height="18" rx="4" />
+      <rect x="199" y="46" width="12" height="18" rx="4" />
+      <rect x="199" y="87" width="12" height="18" rx="4" />
+      <rect x="199" y="128" width="12" height="18" rx="4" />
+      <rect x="199" y="169" width="12" height="18" rx="4" />
+    </g>
+    <g fill="none" stroke="{{TEXT}}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 127 76 C 124 62 108 57 101 69 C 99 73 98 78 97 84 L 87 170 C 85 187 77 196 66 193" />
+      <path d="M 175 76 C 172 62 156 57 149 69 C 147 73 146 78 145 84 L 135 170 C 133 187 125 196 114 193" />
+      <path d="M 76 117 C 108 113 140 110 171 107" />
+    </g>
+    <g fill="none" stroke="{{TEXT}}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 268 162 V 78 L 308 132 L 348 78 V 162" />
+      <path d="M 374 162 V 78 H 410 C 434 78 446 92 446 112 C 446 132 434 146 410 146 H 374" />
+      <path d="M 536 78 H 476 V 162 H 536 M 476 120 H 528" />
+      <path d="M 642 96 C 634 84 620 78 604 78 C 580 78 562 96 562 120 C 562 144 580 162 604 162 C 628 162 646 146 646 122 H 610" />
+    </g>
+    <g fill="none" stroke="{{SKY}}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 698 162 V 100 C 698 84 706 76 720 76 C 728 76 734 79 737 84 M 684 112 H 724" />
+      <path d="M 748 108 L 774 160 M 800 108 L 766 176 C 760 188 754 194 742 194" />
+      <path d="M 824 162 V 78 L 864 132 L 904 78 V 162" />
+      <path d="M 932 136 H 985 C 985 120 974 108 958 108 C 942 108 931 120 931 135 C 931 151 942 162 959 162 C 969 162 977 158 983 152" />
+    </g>
   </g>
   <text x="90" y="346" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="{{TEXT}}">{{TAGLINE}}</text>
   <text x="90" y="430" font-family="Arial, Helvetica, sans-serif" font-size="30" fill="{{SUBTEXT1}}">{{PILLAR_1}}</text>

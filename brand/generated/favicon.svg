@@ -1,20 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="ffmpegfyMeFaviconTitle">
   <title id="ffmpegfyMeFaviconTitle">ffmpegfyMe</title>
-  <rect x="8" y="8" width="112" height="112" rx="16" fill="none" stroke="#cad3f5" stroke-width="4" />
-  <g fill="#24273a">
-    <circle cx="8" cy="34" r="3.5" />
-    <circle cx="8" cy="64" r="3.5" />
-    <circle cx="8" cy="94" r="3.5" />
-    <circle cx="120" cy="34" r="3.5" />
-    <circle cx="120" cy="64" r="3.5" />
-    <circle cx="120" cy="94" r="3.5" />
-  </g>
-  <g fill="none" stroke="#cad3f5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 34 96 V 62 C 34 49 39 43 47 43 C 53 43 57 47 58 54 M 34 75 H 53" />
-    <path d="M 58 96 V 62 C 58 49 63 43 71 43 C 77 43 81 47 82 54 M 58 75 H 77" />
-  </g>
-  <g fill="none" stroke="#91d7e3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 80 37 V 21 C 80 15 83 12 88 12 C 92 12 94 14 95 17 M 80 27 H 91" />
-    <path d="M 96 20 L 104 38 C 106 43 105 47 101 50 M 96 20 L 106 33" />
+  <!-- Film frame from logo.svg, scaled to fill the icon -->
+  <g transform="translate(4 4) scale(0.625) translate(-28 -24)">
+    <rect x="28" y="24" width="192" height="192" rx="30" fill="#181926" stroke="#494d64" stroke-width="4" />
+    <rect x="58" y="36" width="132" height="168" rx="14" fill="#1e2030" stroke="#363a4f" stroke-width="3" />
+    <g fill="#363a4f">
+      <rect x="37" y="46" width="12" height="18" rx="4" />
+      <rect x="37" y="87" width="12" height="18" rx="4" />
+      <rect x="37" y="128" width="12" height="18" rx="4" />
+      <rect x="37" y="169" width="12" height="18" rx="4" />
+      <rect x="199" y="46" width="12" height="18" rx="4" />
+      <rect x="199" y="87" width="12" height="18" rx="4" />
+      <rect x="199" y="128" width="12" height="18" rx="4" />
+      <rect x="199" y="169" width="12" height="18" rx="4" />
+    </g>
+    <!-- Handwritten ff ligature from logo.svg, reduced to leave room for the superscript -->
+    <g transform="translate(68 194) scale(0.72) translate(-66 -196)" fill="none" stroke="#cad3f5" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 127 76 C 124 62 108 57 101 69 C 99 73 98 78 97 84 L 87 170 C 85 187 77 196 66 193" />
+      <path d="M 175 76 C 172 62 156 57 149 69 C 147 73 146 78 145 84 L 135 170 C 133 187 125 196 114 193" />
+      <path d="M 76 117 C 108 113 140 110 171 107" />
+    </g>
+    <!-- Superscript fy: logo.svg sky glyphs, y spaced apart for small sizes -->
+    <g transform="translate(144 44) scale(0.32) translate(-684 -76)" fill="none" stroke="#91d7e3" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 698 162 V 100 C 698 84 706 76 720 76 C 728 76 734 79 737 84 M 684 112 H 724" />
+      <path transform="translate(8 0)" d="M 748 108 L 774 160 M 800 108 L 766 176 C 760 188 754 194 742 194" />
+    </g>
   </g>
 </svg>
